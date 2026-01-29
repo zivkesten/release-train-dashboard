@@ -63,136 +63,66 @@ export function TrainTrack({
       role="region"
       aria-label="Release train track"
     >
-      {/* Desktop: Horizontal Track */}
-      <div className="hidden lg:block">
-        {/* Track Line */}
-        <div className="relative h-3 bg-track-bg rounded-full mb-8 mx-8">
-          {/* Progress Fill */}
+      {/* Vertical Track for all screen sizes */}
+      <div className="relative pl-8">
+        {/* Vertical Track Line */}
+        <div className="absolute left-3 top-0 bottom-0 w-1.5 bg-track-bg rounded-full">
           <motion.div
-            className="absolute inset-y-0 left-0 bg-gradient-to-r from-primary to-primary-glow rounded-full shadow-glow"
-            initial={{ width: 0 }}
-            animate={{ width: `${progressPercent}%` }}
+            className="absolute top-0 left-0 right-0 bg-gradient-to-b from-primary to-primary-glow rounded-full shadow-glow"
+            initial={{ height: 0 }}
+            animate={{ height: `${progressPercent}%` }}
             transition={{ duration: 0.8, ease: [0.34, 1.56, 0.64, 1] }}
           />
-          
-          {/* Station Dots */}
-          <div className="absolute inset-0 flex justify-between items-center px-4">
-            {run.stops.map((stop, index) => {
-              const isCurrent = index === currentStopIndex;
-              const isDone = stop.status === 'done';
-              
-              return (
-                <div key={stop.id} className="relative">
-                  {/* Train Icon at current position */}
+        </div>
+        
+        {/* Station Cards */}
+        <div className="space-y-4">
+          {run.stops.map((stop, index) => {
+            const isCurrent = index === currentStopIndex;
+            const isDone = stop.status === 'done';
+            
+            return (
+              <div key={stop.id} className="relative flex gap-4">
+                {/* Station Dot & Train */}
+                <div className="absolute left-[-20px] flex flex-col items-center">
                   {isCurrent && (
                     <motion.div
-                      className="absolute -top-8 left-1/2 -translate-x-1/2 z-10"
-                      layoutId="train"
+                      className="absolute -left-3 z-10"
+                      layoutId="train-vertical"
                       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                     >
                       <TrainIcon isMoving={trainMoving} isFinal={isComplete} />
                     </motion.div>
                   )}
                   
-                  {/* Station Dot */}
-                  <motion.div
-                    className={cn(
-                      'w-5 h-5 rounded-full border-3 transition-colors',
-                      isDone ? 'bg-status-done border-status-done' :
-                      stop.status === 'in-progress' ? 'bg-primary border-primary animate-pulse' :
-                      stop.status === 'blocked' ? 'bg-status-blocked border-status-blocked' :
-                      'bg-muted border-muted-foreground/30'
-                    )}
-                    whileHover={{ scale: 1.2 }}
-                    aria-label={`Stop ${stop.number}: ${stop.title} - ${stop.status}`}
+                  {!isCurrent && (
+                    <motion.div
+                      className={cn(
+                        'w-4 h-4 rounded-full border-2',
+                        isDone ? 'bg-status-done border-status-done' :
+                        stop.status === 'blocked' ? 'bg-status-blocked border-status-blocked' :
+                        'bg-muted border-muted-foreground/30'
+                      )}
+                    />
+                  )}
+                </div>
+                
+                {/* Card */}
+                <div className={cn('flex-1', isCurrent && 'ml-8')}>
+                  <StationCard
+                    stop={stop}
+                    isCurrent={isCurrent}
+                    isReadOnly={isReadOnly}
+                    onStart={() => onUpdateStatus(stop.id, 'in-progress')}
+                    onComplete={() => handleComplete(stop.id)}
+                    onBlock={() => onUpdateStatus(stop.id, 'blocked')}
+                    onUnblock={() => onUpdateStatus(stop.id, 'in-progress')}
+                    onAddNote={(text) => onAddNote(stop.id, 'You', text)}
                   />
                 </div>
-              );
-            })}
-          </div>
-        </div>
-        
-        {/* Station Cards - Horizontal Scroll */}
-        <div className="flex gap-4 overflow-x-auto pb-4 px-4 snap-x snap-mandatory">
-          {run.stops.map((stop, index) => (
-            <div key={stop.id} className="snap-start">
-              <StationCard
-                stop={stop}
-                isCurrent={index === currentStopIndex}
-                isReadOnly={isReadOnly}
-                onStart={() => onUpdateStatus(stop.id, 'in-progress')}
-                onComplete={() => handleComplete(stop.id)}
-                onBlock={() => onUpdateStatus(stop.id, 'blocked')}
-                onUnblock={() => onUpdateStatus(stop.id, 'in-progress')}
-                onAddNote={(text) => onAddNote(stop.id, 'You', text)}
-              />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Mobile/Tablet: Vertical Track */}
-      <div className="lg:hidden">
-        <div className="relative pl-8">
-          {/* Vertical Track Line */}
-          <div className="absolute left-3 top-0 bottom-0 w-1.5 bg-track-bg rounded-full">
-            <motion.div
-              className="absolute top-0 left-0 right-0 bg-gradient-to-b from-primary to-primary-glow rounded-full shadow-glow"
-              initial={{ height: 0 }}
-              animate={{ height: `${progressPercent}%` }}
-              transition={{ duration: 0.8, ease: [0.34, 1.56, 0.64, 1] }}
-            />
-          </div>
-          
-          {/* Station Cards */}
-          <div className="space-y-4">
-            {run.stops.map((stop, index) => {
-              const isCurrent = index === currentStopIndex;
-              const isDone = stop.status === 'done';
-              
-              return (
-                <div key={stop.id} className="relative flex gap-4">
-                  {/* Station Dot & Train */}
-                  <div className="absolute left-[-20px] flex flex-col items-center">
-                    {isCurrent && (
-                      <motion.div
-                        className="absolute -left-3 z-10"
-                        layoutId="train-mobile"
-                        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                      >
-                        <TrainIcon isMoving={trainMoving} isFinal={isComplete} />
-                      </motion.div>
-                    )}
-                    
-                    {!isCurrent && (
-                      <motion.div
-                        className={cn(
-                          'w-4 h-4 rounded-full border-2',
-                          isDone ? 'bg-status-done border-status-done' :
-                          stop.status === 'blocked' ? 'bg-status-blocked border-status-blocked' :
-                          'bg-muted border-muted-foreground/30'
-                        )}
-                      />
-                    )}
-                  </div>
-                  
-                  {/* Card */}
-                  <div className={cn('flex-1', isCurrent && 'ml-8')}>
-                    <StationCard
-                      stop={stop}
-                      isCurrent={isCurrent}
-                      isReadOnly={isReadOnly}
-                      onStart={() => onUpdateStatus(stop.id, 'in-progress')}
-                      onComplete={() => handleComplete(stop.id)}
-                      onBlock={() => onUpdateStatus(stop.id, 'blocked')}
-                      onUnblock={() => onUpdateStatus(stop.id, 'in-progress')}
-                      onAddNote={(text) => onAddNote(stop.id, 'You', text)}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
