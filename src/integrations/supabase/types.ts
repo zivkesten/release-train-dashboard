@@ -38,6 +38,36 @@ export type Database = {
         }
         Relationships: []
       }
+      login_tokens: {
+        Row: {
+          created_at: string
+          created_by: string
+          expires_at: string
+          id: string
+          token: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          expires_at: string
+          id?: string
+          token: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          expires_at?: string
+          id?: string
+          token?: string
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       notes: {
         Row: {
           author_id: string
