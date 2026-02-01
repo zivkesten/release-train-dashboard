@@ -20,12 +20,12 @@ export function SmokeAnimation({ isActive, onComplete }: SmokeAnimationProps) {
   useEffect(() => {
     if (isActive) {
       // Generate smoke particles
-      const newParticles: SmokeParticle[] = Array.from({ length: 20 }, (_, i) => ({
+      const newParticles: SmokeParticle[] = Array.from({ length: 30 }, (_, i) => ({
         id: i,
-        x: Math.random() * 60 - 30, // Random horizontal offset
-        delay: Math.random() * 0.5,
-        size: 20 + Math.random() * 30,
-        duration: 1.5 + Math.random() * 1,
+        x: Math.random() * 80 - 40, // Random horizontal offset
+        delay: Math.random() * 1.2,
+        size: 25 + Math.random() * 40,
+        duration: 2.5 + Math.random() * 1.5,
       }));
       setParticles(newParticles);
 
@@ -33,7 +33,7 @@ export function SmokeAnimation({ isActive, onComplete }: SmokeAnimationProps) {
       const timer = setTimeout(() => {
         setParticles([]);
         onComplete?.();
-      }, 3000);
+      }, 5000);
 
       return () => clearTimeout(timer);
     } else {
