@@ -14,16 +14,223 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      apps: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      notes: {
+        Row: {
+          author_id: string
+          author_name: string
+          created_at: string
+          id: string
+          stop_id: string
+          text: string
+        }
+        Insert: {
+          author_id: string
+          author_name: string
+          created_at?: string
+          id?: string
+          stop_id: string
+          text: string
+        }
+        Update: {
+          author_id?: string
+          author_name?: string
+          created_at?: string
+          id?: string
+          stop_id?: string
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notes_stop_id_fkey"
+            columns: ["stop_id"]
+            isOneToOne: false
+            referencedRelation: "stops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          email: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          email: string
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          email?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      release_trains: {
+        Row: {
+          app_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          platform: Database["public"]["Enums"]["platform_type"]
+          updated_at: string
+          version: string
+        }
+        Insert: {
+          app_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          platform: Database["public"]["Enums"]["platform_type"]
+          updated_at?: string
+          version: string
+        }
+        Update: {
+          app_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          platform?: Database["public"]["Enums"]["platform_type"]
+          updated_at?: string
+          version?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "release_trains_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "apps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stops: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          id: string
+          number: number
+          owner_name: string
+          owner_type: string
+          release_train_id: string
+          started_at: string | null
+          status: Database["public"]["Enums"]["stop_status"]
+          title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          number: number
+          owner_name: string
+          owner_type?: string
+          release_train_id: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["stop_status"]
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          number?: number
+          owner_name?: string
+          owner_type?: string
+          release_train_id?: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["stop_status"]
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stops_release_train_id_fkey"
+            columns: ["release_train_id"]
+            isOneToOne: false
+            referencedRelation: "release_trains"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      can_edit_stops: { Args: { _user_id: string }; Returns: boolean }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "dev" | "qa"
+      platform_type: "ios" | "android"
+      stop_status: "not_started" | "in_progress" | "done" | "blocked"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +357,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "dev", "qa"],
+      platform_type: ["ios", "android"],
+      stop_status: ["not_started", "in_progress", "done", "blocked"],
+    },
   },
 } as const
