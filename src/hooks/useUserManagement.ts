@@ -28,7 +28,7 @@ export function useUserManagement() {
     try {
       setLoading(true);
 
-      // Fetch all profiles
+      // Fetch profiles (users can only see their own, admins can see all)
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
@@ -36,14 +36,14 @@ export function useUserManagement() {
 
       if (profilesError) throw profilesError;
 
-      // Fetch all roles
+      // Fetch roles (users can only see their own, admins can see all via RLS)
       const { data: roles, error: rolesError } = await supabase
         .from('user_roles')
         .select('*');
 
       if (rolesError) throw rolesError;
 
-      // Combine profiles with roles
+      // Combine profiles with roles (RLS ensures proper access)
       const usersWithRoles: UserWithRoles[] = (profiles || []).map(profile => ({
         id: profile.id,
         email: profile.email,
