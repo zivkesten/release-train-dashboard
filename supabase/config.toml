@@ -1,1 +1,7 @@
 project_id = "ubxbefzphzmvnxsjyaei"
+
+[functions.admin-users]
+verify_jwt = false
+
+[functions.qr-login]
+verify_jwt = false

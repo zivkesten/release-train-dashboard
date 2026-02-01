@@ -47,6 +47,7 @@ import {
 import { ArrowLeft, Plus, Trash2, UserPlus, Loader2, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
+import { QRCodeGenerator } from '@/components/QRCodeGenerator';
 
 type AppRole = 'admin' | 'dev' | 'qa';
 
@@ -383,6 +384,11 @@ export default function Admin() {
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
+                              <QRCodeGenerator 
+                                userId={userItem.id} 
+                                userName={userItem.display_name || userItem.email}
+                              />
+                              
                               <Dialog>
                                 <DialogTrigger asChild>
                                   <Button 

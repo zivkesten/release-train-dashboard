@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Train, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { QRScanner } from '@/components/QRScanner';
 
 export default function Auth() {
   const { user, signIn, signUp, loading } = useAuth();
@@ -140,6 +141,17 @@ export default function Auth() {
                   ) : null}
                   Sign In
                 </Button>
+                
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">or</span>
+                  </div>
+                </div>
+                
+                <QRScanner onSuccess={() => navigate('/')} />
               </form>
             </TabsContent>
 
