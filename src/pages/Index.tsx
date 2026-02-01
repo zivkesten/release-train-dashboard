@@ -10,6 +10,8 @@ import { TrainTrack } from '@/components/TrainTrack';
 import { PastRunsPanel } from '@/components/PastRunsPanel';
 import { AppSelector } from '@/components/AppSelector';
 import { UserMenu } from '@/components/UserMenu';
+import { ReleaseAnalytics } from '@/components/ReleaseAnalytics';
+import { SmokeAnimation } from '@/components/SmokeAnimation';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,7 +25,18 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { History, Sparkles, Plus, Train, Loader2, AlertCircle } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { History, Sparkles, Plus, Train, Loader2, AlertCircle, RotateCcw, Rocket } from 'lucide-react';
 import { toast } from 'sonner';
 
 const Index = () => {
@@ -42,6 +55,11 @@ const Index = () => {
   const [newVersion, setNewVersion] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
+  // Train start animation
+  const [isStarting, setIsStarting] = useState(false);
+  const [showSmoke, setShowSmoke] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+
   const {
     releaseTrains,
     stops,
@@ -50,6 +68,8 @@ const Index = () => {
     createReleaseTrain,
     updateStopStatus,
     advanceToNextStop,
+    startTrain,
+    resetTrain,
     addNote,
     getActiveRelease,
     getPastReleases,
@@ -98,6 +118,8 @@ const Index = () => {
   const selectedApp = apps.find(a => a.id === selectedAppId);
   const releaseStops = selectedRelease ? stops[selectedRelease.id] || [] : [];
   const isComplete = releaseStops.every(s => s.status === 'done');
+  const isTrainStarted = releaseStops.some(s => s.status !== 'not_started');
+  const allNotStarted = releaseStops.every(s => s.status === 'not_started');
 
   const getProgress = (release: typeof activeRelease) => {
     if (!release) return { completed: 0, total: 10 };
@@ -170,6 +192,36 @@ const Index = () => {
       await advanceToNextStop(selectedRelease.id);
     } catch (err: any) {
       toast.error(err.message);
+    }
+  };
+
+  const handleStartTrain = async () => {
+    if (!selectedRelease) return;
+    
+    setIsStarting(true);
+    setShowSmoke(true);
+    
+    try {
+      await startTrain(selectedRelease.id);
+      toast.success('🚂 All aboard! The train is leaving the station!');
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setIsStarting(false);
+    }
+  };
+
+  const handleResetTrain = async () => {
+    if (!selectedRelease) return;
+    
+    setIsResetting(true);
+    try {
+      await resetTrain(selectedRelease.id);
+      toast.success('Release train has been reset');
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -323,9 +375,9 @@ const Index = () => {
           <div className="flex gap-6">
             {/* Main Content */}
             <div className="flex-1 min-w-0">
-              {/* Release Title */}
+              {/* Release Title & Actions */}
               <div className="mb-6">
-                <div className="flex items-center gap-3 mb-2">
+                <div className="flex items-center gap-3 mb-2 flex-wrap">
                   <h2 className="text-2xl font-bold">
                     {selectedRelease.version}
                   </h2>
@@ -339,10 +391,65 @@ const Index = () => {
                       Complete!
                     </motion.div>
                   )}
+                  
+                  {/* Start Train Button - Admin only, only when all stops are not started */}
+                  {isAdmin && allNotStarted && !isViewingPast && (
+                    <div className="relative">
+                      <Button
+                        onClick={handleStartTrain}
+                        disabled={isStarting}
+                        className="gap-2 bg-gradient-to-r from-primary to-primary-glow hover:opacity-90"
+                      >
+                        {isStarting ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Rocket className="w-4 h-4" />
+                        )}
+                        Start the Train!
+                      </Button>
+                      <SmokeAnimation 
+                        isActive={showSmoke} 
+                        onComplete={() => setShowSmoke(false)} 
+                      />
+                    </div>
+                  )}
+                  
+                  {/* Reset Button - Admin only */}
+                  {isAdmin && isTrainStarted && !isViewingPast && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="gap-1">
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          Reset
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Reset Release Train?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will reset all stops to "Not Started" and clear all timestamps. 
+                            Notes will be preserved. This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction 
+                            onClick={handleResetTrain}
+                            disabled={isResetting}
+                          >
+                            {isResetting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                            Reset Train
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
                 </div>
                 <p className="text-sm text-muted-foreground">
                   {isViewingPast 
                     ? 'Viewing past release (read-only)'
+                    : allNotStarted
+                    ? 'Ready to start • Click "Start the Train!" to begin'
                     : `Current release train • ${selectedPlatform?.toUpperCase()}`
                   }
                 </p>
@@ -368,12 +475,25 @@ const Index = () => {
                   </motion.div>
                 </AnimatePresence>
               )}
+
+              {/* Analytics - below the track on mobile/tablet */}
+              {releaseRun && (
+                <div className="mt-6 lg:hidden">
+                  <ReleaseAnalytics run={releaseRun as any} />
+                </div>
+              )}
             </div>
 
-            {/* Desktop: Past Runs Sidebar */}
-            {pastReleases.length > 0 && (
-              <div className="hidden lg:block w-72 flex-shrink-0">
-                <div className="sticky top-24">
+            {/* Desktop: Sidebar with Analytics & Past Runs */}
+            <div className="hidden lg:block w-72 flex-shrink-0 space-y-4">
+              <div className="sticky top-24 space-y-4">
+                {/* Analytics */}
+                {releaseRun && (
+                  <ReleaseAnalytics run={releaseRun as any} />
+                )}
+                
+                {/* Past Runs */}
+                {pastReleases.length > 0 && (
                   <PastRunsPanel
                     pastRuns={pastReleases.map(r => convertToReleaseRun(r)!).filter(Boolean) as any[]}
                     currentRunId={activeRelease?.id || ''}
@@ -381,9 +501,9 @@ const Index = () => {
                     onSelectRun={(id) => setSelectedRunId(id === activeRelease?.id ? null : id)}
                     getProgress={(run) => getProgress(releaseTrains.find(r => r.id === run.id))}
                   />
-                </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
         )}
       </div>

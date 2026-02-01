@@ -141,7 +141,7 @@ export function useReleaseTrains(appId: string | null, platform: Platform | null
 
     if (trainError) throw trainError;
 
-    // Create all 10 stops
+    // Create all 10 stops - all start as not_started (train needs to be started)
     const stopsToCreate = STOP_CONFIGS.map((config, index) => ({
       release_train_id: train.id,
       number: index + 1,
@@ -149,8 +149,8 @@ export function useReleaseTrains(appId: string | null, platform: Platform | null
       description: config.description,
       owner_type: config.ownerType,
       owner_name: config.ownerName,
-      status: index === 0 ? 'in_progress' : 'not_started' as StopStatus,
-      started_at: index === 0 ? new Date().toISOString() : null,
+      status: 'not_started' as StopStatus,
+      started_at: null,
     }));
 
     const { data: newStops, error: stopsError } = await supabase
@@ -225,6 +225,42 @@ export function useReleaseTrains(appId: string | null, platform: Platform | null
     }
   };
 
+  const startTrain = async (trainId: string) => {
+    if (!canEdit) throw new Error('No permission to edit');
+
+    const trainStops = stops[trainId] || [];
+    const firstStop = trainStops.find(s => s.number === 1);
+    
+    if (!firstStop) throw new Error('No stops found');
+    if (firstStop.status !== 'not_started') throw new Error('Train already started');
+
+    await updateStopStatus(firstStop.id, 'in_progress');
+  };
+
+  const resetTrain = async (trainId: string) => {
+    if (!canEdit) throw new Error('No permission to edit');
+
+    const trainStops = stops[trainId] || [];
+    
+    // Reset all stops to not_started
+    for (const stop of trainStops) {
+      const { error } = await supabase
+        .from('stops')
+        .update({
+          status: 'not_started',
+          started_at: null,
+          completed_at: null,
+          updated_by: user?.id,
+        })
+        .eq('id', stop.id);
+      
+      if (error) throw error;
+    }
+
+    // Refresh the data
+    await fetchReleaseTrains();
+  };
+
   const addNote = async (stopId: string, text: string) => {
     if (!user || !canEdit) throw new Error('No permission');
 
@@ -262,6 +298,8 @@ export function useReleaseTrains(appId: string | null, platform: Platform | null
     createReleaseTrain,
     updateStopStatus,
     advanceToNextStop,
+    startTrain,
+    resetTrain,
     addNote,
     getActiveRelease,
     getPastReleases,
