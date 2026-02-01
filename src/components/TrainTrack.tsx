@@ -165,7 +165,7 @@ export function TrainTrack({
                       className={cn(
                         'flex-1',
                         isCurrent && 'ml-8',
-                        !isMobile && isSelected && 'ring-2 ring-primary ring-offset-2 ring-offset-background rounded-lg',
+                        !isMobile && isSelected && 'ring-2 ring-primary rounded-lg',
                         (isMobile && isAdmin) && 'cursor-pointer',
                         !isMobile && 'cursor-pointer'
                       )}
