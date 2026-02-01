@@ -6,117 +6,118 @@
 
 @layer base {
   :root {
-    /* Core palette - Teal/Emerald focused */
-    --background: 40 20% 98%;
-    --foreground: 200 30% 12%;
+    /* Core palette - Deep Navy Blue */
+    --background: 210 30% 97%;
+    --foreground: 210 50% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 200 30% 12%;
+    --card-foreground: 210 50% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 200 30% 12%;
+    --popover-foreground: 210 50% 15%;
 
-    /* Primary: Deep teal */
-    --primary: 172 66% 30%;
+    /* Primary: Deep Navy Blue */
+    --primary: 210 55% 25%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 172 70% 45%;
+    --primary-glow: 210 60% 40%;
 
-    /* Secondary: Warm gray */
-    --secondary: 40 15% 94%;
-    --secondary-foreground: 200 25% 20%;
+    /* Secondary: Slate blue-gray */
+    --secondary: 210 20% 94%;
+    --secondary-foreground: 210 40% 25%;
 
-    --muted: 40 10% 92%;
-    --muted-foreground: 200 15% 46%;
+    --muted: 210 15% 92%;
+    --muted-foreground: 210 20% 50%;
 
-    /* Accent: Bright teal */
-    --accent: 172 60% 94%;
-    --accent-foreground: 172 66% 25%;
+    /* Accent: Light navy */
+    --accent: 210 50% 94%;
+    --accent-foreground: 210 55% 25%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 200 15% 88%;
-    --input: 200 15% 88%;
-    --ring: 172 66% 30%;
+    --border: 210 20% 88%;
+    --input: 210 20% 88%;
+    --ring: 210 55% 25%;
 
     --radius: 0.75rem;
 
     /* Status colors */
-    --status-not-started: 200 15% 75%;
+    --status-not-started: 210 15% 75%;
     --status-in-progress: 38 92% 50%;
     --status-done: 152 69% 40%;
     --status-blocked: 0 72% 51%;
 
     /* Track styling */
-    --track-bg: 200 15% 88%;
-    --track-fill: 172 66% 45%;
-    --track-glow: 172 80% 55%;
+    --track-bg: 210 20% 88%;
+    --track-fill: 210 55% 35%;
+    --track-glow: 210 60% 50%;
 
     /* Train */
-    --train-body: 172 66% 30%;
+    --train-body: 210 55% 25%;
     --train-accent: 38 92% 50%;
 
     /* Sidebar */
-    --sidebar-background: 40 15% 96%;
-    --sidebar-foreground: 200 30% 12%;
-    --sidebar-primary: 172 66% 30%;
+    --sidebar-background: 210 20% 96%;
+    --sidebar-foreground: 210 50% 15%;
+    --sidebar-primary: 210 55% 25%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 172 60% 94%;
-    --sidebar-accent-foreground: 172 66% 25%;
-    --sidebar-border: 200 15% 90%;
-    --sidebar-ring: 172 66% 30%;
+    --sidebar-accent: 210 50% 94%;
+    --sidebar-accent-foreground: 210 55% 25%;
+    --sidebar-border: 210 20% 90%;
+    --sidebar-ring: 210 55% 25%;
   }
 
   .dark {
-    --background: 200 30% 8%;
-    --foreground: 40 20% 95%;
+    /* Dark mode - Deep Navy Blue theme */
+    --background: 210 50% 10%;
+    --foreground: 210 20% 95%;
 
-    --card: 200 25% 12%;
-    --card-foreground: 40 20% 95%;
+    --card: 210 45% 15%;
+    --card-foreground: 210 20% 95%;
 
-    --popover: 200 25% 12%;
-    --popover-foreground: 40 20% 95%;
+    --popover: 210 45% 15%;
+    --popover-foreground: 210 20% 95%;
 
-    --primary: 172 60% 50%;
-    --primary-foreground: 200 30% 8%;
-    --primary-glow: 172 70% 55%;
+    --primary: 210 50% 55%;
+    --primary-foreground: 210 50% 8%;
+    --primary-glow: 210 55% 60%;
 
-    --secondary: 200 20% 18%;
-    --secondary-foreground: 40 15% 90%;
+    --secondary: 210 35% 20%;
+    --secondary-foreground: 210 15% 90%;
 
-    --muted: 200 20% 18%;
-    --muted-foreground: 200 15% 60%;
+    --muted: 210 35% 20%;
+    --muted-foreground: 210 20% 60%;
 
-    --accent: 172 40% 20%;
-    --accent-foreground: 172 60% 70%;
+    --accent: 210 40% 25%;
+    --accent-foreground: 210 50% 75%;
 
-    --destructive: 0 62% 40%;
+    --destructive: 0 62% 45%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 200 20% 20%;
-    --input: 200 20% 20%;
-    --ring: 172 60% 50%;
+    --border: 210 35% 22%;
+    --input: 210 35% 22%;
+    --ring: 210 50% 55%;
 
-    --status-not-started: 200 15% 40%;
+    --status-not-started: 210 20% 40%;
     --status-in-progress: 38 92% 50%;
     --status-done: 152 69% 45%;
     --status-blocked: 0 62% 50%;
 
-    --track-bg: 200 20% 20%;
-    --track-fill: 172 60% 50%;
-    --track-glow: 172 70% 60%;
+    --track-bg: 210 35% 22%;
+    --track-fill: 210 50% 55%;
+    --track-glow: 210 55% 65%;
 
-    --train-body: 172 60% 50%;
+    --train-body: 210 50% 55%;
     --train-accent: 38 92% 55%;
 
-    --sidebar-background: 200 25% 10%;
-    --sidebar-foreground: 40 20% 95%;
-    --sidebar-primary: 172 60% 50%;
-    --sidebar-primary-foreground: 200 30% 8%;
-    --sidebar-accent: 172 40% 20%;
-    --sidebar-accent-foreground: 172 60% 70%;
-    --sidebar-border: 200 20% 18%;
-    --sidebar-ring: 172 60% 50%;
+    --sidebar-background: 210 45% 12%;
+    --sidebar-foreground: 210 20% 95%;
+    --sidebar-primary: 210 50% 55%;
+    --sidebar-primary-foreground: 210 50% 8%;
+    --sidebar-accent: 210 40% 25%;
+    --sidebar-accent-foreground: 210 50% 75%;
+    --sidebar-border: 210 35% 20%;
+    --sidebar-ring: 210 50% 55%;
   }
 }
 
