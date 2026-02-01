@@ -204,13 +204,17 @@ const Index = () => {
               <CardTitle>No Apps Configured</CardTitle>
               <CardDescription>
                 {isAdmin 
-                  ? "Create your first app to start tracking releases."
+                  ? "Create your first release track to start tracking releases."
                   : "No apps have been created yet. Ask an admin to set up apps."}
               </CardDescription>
             </CardHeader>
             {isAdmin && (
-              <CardContent>
-                <Button className="w-full" onClick={() => navigate('/admin')}>
+              <CardContent className="flex flex-col gap-2">
+                <Button className="w-full" onClick={() => navigate('/create-track')}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create New Track
+                </Button>
+                <Button variant="outline" className="w-full" onClick={() => navigate('/admin')}>
                   Go to Admin Panel
                 </Button>
               </CardContent>
@@ -256,9 +260,9 @@ const Index = () => {
               {isAdmin && selectedAppId && selectedPlatform && (
                 <Dialog open={newReleaseOpen} onOpenChange={setNewReleaseOpen}>
                   <DialogTrigger asChild>
-                    <Button size="sm" className="h-9">
+                    <Button size="sm" variant="outline" className="h-9">
                       <Plus className="w-4 h-4 mr-1" />
-                      New Release
+                      New Version
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
@@ -282,6 +286,14 @@ const Index = () => {
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
+              )}
+
+              {/* Create Track Button (Admin only) */}
+              {isAdmin && (
+                <Button size="sm" className="h-9" onClick={() => navigate('/create-track')}>
+                  <Plus className="w-4 h-4 mr-1" />
+                  New Track
+                </Button>
               )}
 
               <UserMenu />
