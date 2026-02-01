@@ -55,10 +55,19 @@ export default function Auth() {
     }
   };
 
+  const validateOneStepEmail = (email: string): boolean => {
+    return email.toLowerCase().endsWith('@onestep.co');
+  };
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!signupEmail || !signupPassword) {
       toast.error('Please fill in all required fields');
+      return;
+    }
+
+    if (!validateOneStepEmail(signupEmail)) {
+      toast.error('Only @onestep.co email addresses are allowed');
       return;
     }
 
@@ -172,11 +181,14 @@ export default function Auth() {
                   <Input
                     id="signup-email"
                     type="email"
-                    placeholder="you@example.com"
+                    placeholder="you@onestep.co"
                     value={signupEmail}
                     onChange={(e) => setSignupEmail(e.target.value)}
                     required
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Only @onestep.co emails are allowed
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-password">Password</Label>
