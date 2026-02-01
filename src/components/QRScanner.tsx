@@ -22,6 +22,8 @@ export function QRScanner({ onSuccess }: QRScannerProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const [hasCamera, setHasCamera] = useState(true);
+  const processedTokenRef = useRef<string | null>(null);
+  const isSuccessRef = useRef(false);
 
   useEffect(() => {
     // Check if camera is available
@@ -71,31 +73,38 @@ export function QRScanner({ onSuccess }: QRScannerProps) {
   };
 
   const handleScan = async (decodedText: string) => {
-    // Prevent multiple scans while processing
-    if (isProcessing) return;
+    // Prevent multiple scans while processing or after success
+    if (isProcessing || isSuccessRef.current) return;
 
     // Check if it's a valid QR login token
     if (!decodedText.startsWith('qr-login:')) {
       return;
     }
 
+    const token = decodedText.replace('qr-login:', '');
+
+    // Prevent processing the same token twice
+    if (processedTokenRef.current === token) {
+      return;
+    }
+
+    processedTokenRef.current = token;
     setIsProcessing(true);
     await stopScanning();
 
-    const token = decodedText.replace('qr-login:', '');
-
     try {
-      toast.loading('Validating QR code...');
+      const loadingToastId = toast.loading('Validating QR code...');
 
       const { data, error } = await supabase.functions.invoke('qr-login', {
         body: { action: 'validate', token },
       });
 
+      toast.dismiss(loadingToastId);
+
       if (error) throw error;
 
       if (data.success && data.tokenHash) {
-        toast.dismiss();
-        toast.loading('Logging you in...');
+        const loginToastId = toast.loading('Logging you in...');
 
         // Use the token hash to verify the OTP
         const { error: verifyError } = await supabase.auth.verifyOtp({
@@ -103,26 +112,33 @@ export function QRScanner({ onSuccess }: QRScannerProps) {
           type: 'magiclink',
         });
 
+        toast.dismiss(loginToastId);
+
         if (verifyError) throw verifyError;
 
-        toast.dismiss();
+        isSuccessRef.current = true;
         toast.success(`Logged in as ${data.email}`);
         setIsOpen(false);
         onSuccess?.();
       }
     } catch (error: any) {
-      toast.dismiss();
       console.error('QR validation failed:', error);
       toast.error(error.message || 'Failed to validate QR code');
+      // Reset to allow retry with a different QR code
+      processedTokenRef.current = null;
       setIsProcessing(false);
-      // Restart scanning after error
-      startScanning();
+      // Only restart scanning if not successful
+      if (!isSuccessRef.current) {
+        startScanning();
+      }
     }
   };
 
   const handleOpen = () => {
     setIsOpen(true);
     setIsProcessing(false);
+    processedTokenRef.current = null;
+    isSuccessRef.current = false;
     // Delay to allow dialog to render
     setTimeout(startScanning, 500);
   };
@@ -131,6 +147,7 @@ export function QRScanner({ onSuccess }: QRScannerProps) {
     stopScanning();
     setIsOpen(false);
     setIsProcessing(false);
+    processedTokenRef.current = null;
   };
 
   // Only show on mobile devices
