@@ -123,11 +123,14 @@ export function StationCard({
 
       {/* Actions */}
       {!isReadOnly && (
-        <div className="flex flex-wrap gap-2 mb-3">
+        <div className="flex flex-wrap gap-2 mb-3" onClick={(e) => e.stopPropagation()}>
           {stop.status === 'not-started' && isCurrent && (
             <Button 
               size="sm" 
-              onClick={onStart}
+              onClick={(e) => {
+                e.stopPropagation();
+                onStart();
+              }}
               className="h-7 text-xs focus-ring"
             >
               <Play className="w-3 h-3 mr-1" />
@@ -139,7 +142,10 @@ export function StationCard({
             <>
               <Button 
                 size="sm" 
-                onClick={onComplete}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onComplete();
+                }}
                 className="h-7 text-xs focus-ring"
               >
                 <CheckCircle2 className="w-3 h-3 mr-1" />
@@ -148,7 +154,10 @@ export function StationCard({
               <Button 
                 size="sm" 
                 variant="destructive"
-                onClick={onBlock}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onBlock();
+                }}
                 className="h-7 text-xs focus-ring"
               >
                 <Ban className="w-3 h-3 mr-1" />
@@ -161,7 +170,10 @@ export function StationCard({
             <Button 
               size="sm" 
               variant="outline"
-              onClick={onUnblock}
+              onClick={(e) => {
+                e.stopPropagation();
+                onUnblock();
+              }}
               className="h-7 text-xs focus-ring"
             >
               Unblock
@@ -171,9 +183,12 @@ export function StationCard({
       )}
 
       {/* Notes Section */}
-      <div className="border-t pt-3">
+      <div className="border-t pt-3" onClick={(e) => e.stopPropagation()}>
         <button
-          onClick={() => setShowNotes(!showNotes)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowNotes(!showNotes);
+          }}
           className="flex items-center justify-between w-full text-xs text-muted-foreground hover:text-foreground transition-colors focus-ring rounded"
           aria-expanded={showNotes}
         >
@@ -215,14 +230,21 @@ export function StationCard({
                       type="text"
                       value={noteText}
                       onChange={(e) => setNoteText(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
                       placeholder="Add a note..."
                       className="flex-1 h-7 px-2 text-xs rounded border bg-background focus-ring"
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddNote()}
+                      onKeyDown={(e) => {
+                        e.stopPropagation();
+                        if (e.key === 'Enter') handleAddNote();
+                      }}
                     />
                     <Button 
                       size="sm" 
                       variant="secondary"
-                      onClick={handleAddNote}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAddNote();
+                      }}
                       disabled={!noteText.trim()}
                       className="h-7 text-xs"
                     >
