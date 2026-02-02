@@ -2,7 +2,7 @@ import { useRef, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ReleaseRun, STOP_CONFIGS, StopStatus, Stop } from '@/types/release';
 import { StationCard } from './StationCard';
-import { StationEditPanel } from './StationEditPanel';
+import { StationEditPanel, ProfileOption } from './StationEditPanel';
 import { TrainIcon } from './TrainIcon';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -18,17 +18,21 @@ import {
 interface TrainTrackProps {
   run: ReleaseRun;
   isReadOnly: boolean;
+  profiles: ProfileOption[];
   onUpdateStatus: (stopId: string, status: StopStatus) => void;
   onAdvance: () => void;
   onAddNote: (stopId: string, author: string, text: string) => void;
+  onOwnerChange: (stopId: string, ownerName: string) => void;
 }
 
 export function TrainTrack({
   run,
   isReadOnly,
+  profiles,
   onUpdateStatus,
   onAdvance,
   onAddNote,
+  onOwnerChange,
 }: TrainTrackProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [trainMoving, setTrainMoving] = useState(false);
@@ -103,6 +107,7 @@ export function TrainTrack({
     onComplete: () => handleComplete(stop.id),
     onBlock: () => onUpdateStatus(stop.id, 'blocked'),
     onUnblock: () => onUpdateStatus(stop.id, 'in-progress'),
+    onOwnerChange: (ownerName: string) => onOwnerChange(stop.id, ownerName),
   });
 
   return (
@@ -212,11 +217,13 @@ export function TrainTrack({
                     stop={selectedStop}
                     isAdmin={isAdmin}
                     isReadOnly={isReadOnly}
+                    profiles={profiles}
                     {...(selectedStop ? getStopActions(selectedStop) : {
                       onStart: () => {},
                       onComplete: () => {},
                       onBlock: () => {},
                       onUnblock: () => {},
+                      onOwnerChange: () => {},
                     })}
                   />
                 </motion.div>
@@ -239,6 +246,7 @@ export function TrainTrack({
               stop={selectedStop}
               isAdmin={isAdmin}
               isReadOnly={isReadOnly}
+              profiles={profiles}
               onClose={() => setMobileDrawerOpen(false)}
               showCloseButton
               {...(selectedStop ? getStopActions(selectedStop) : {
@@ -246,6 +254,7 @@ export function TrainTrack({
                 onComplete: () => {},
                 onBlock: () => {},
                 onUnblock: () => {},
+                onOwnerChange: () => {},
               })}
             />
           </DrawerContent>

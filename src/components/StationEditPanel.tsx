@@ -2,7 +2,6 @@ import { Stop, STOP_CONFIGS } from '@/types/release';
 import { StatusPill } from './StatusPill';
 import { StopIcon } from './StopIcon';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
@@ -24,15 +23,23 @@ import {
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 
+export interface ProfileOption {
+  id: string;
+  display_name: string | null;
+  email: string;
+}
+
 interface StationEditPanelProps {
   stop: Stop | null;
   isAdmin: boolean;
   isReadOnly: boolean;
+  profiles?: ProfileOption[];
   onClose?: () => void;
   onStart: () => void;
   onComplete: () => void;
   onBlock: () => void;
   onUnblock: () => void;
+  onOwnerChange?: (ownerName: string) => void;
   showCloseButton?: boolean;
 }
 
@@ -40,11 +47,13 @@ export function StationEditPanel({
   stop,
   isAdmin,
   isReadOnly,
+  profiles = [],
   onClose,
   onStart,
   onComplete,
   onBlock,
   onUnblock,
+  onOwnerChange,
   showCloseButton = false,
 }: StationEditPanelProps) {
   if (!stop) {
@@ -138,13 +147,26 @@ export function StationEditPanel({
 
         {/* Owner Name */}
         <div className="space-y-2">
-          <Label htmlFor="ownerName">Owner Name</Label>
-          <Input
-            id="ownerName"
+          <Label htmlFor="ownerName">Owner</Label>
+          <Select 
+            disabled={isDisabled} 
             value={stop.ownerName}
-            disabled={isDisabled}
-            placeholder="Enter owner name"
-          />
+            onValueChange={(value) => onOwnerChange?.(value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select owner" />
+            </SelectTrigger>
+            <SelectContent>
+              {profiles.map((profile) => (
+                <SelectItem key={profile.id} value={profile.display_name || profile.email}>
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    {profile.display_name || profile.email}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Timestamps */}
