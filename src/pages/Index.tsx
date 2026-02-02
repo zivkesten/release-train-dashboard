@@ -70,6 +70,7 @@ const Index = () => {
     createReleaseTrain,
     updateStopStatus,
     updateStopOwner,
+    updateStopOwnerType,
     advanceToNextStop,
     startTrain,
     resetTrain,
@@ -240,6 +241,15 @@ const Index = () => {
     try {
       await updateStopOwner(stopId, ownerName);
       toast.success('Owner updated');
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleOwnerTypeChange = async (stopId: string, ownerType: 'person' | 'automation') => {
+    try {
+      await updateStopOwnerType(stopId, ownerType);
+      toast.success('Owner type updated');
     } catch (err: any) {
       toast.error(err.message);
     }
@@ -506,6 +516,7 @@ const Index = () => {
                       onAdvance={handleAdvance}
                       onAddNote={handleAddNote}
                       onOwnerChange={handleOwnerChange}
+                      onOwnerTypeChange={handleOwnerTypeChange}
                     />
                   </motion.div>
                 </AnimatePresence>

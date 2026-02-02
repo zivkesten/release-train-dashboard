@@ -314,6 +314,35 @@ export function useReleaseTrains(appId: string | null, platform: Platform | null
     return data;
   };
 
+  const updateStopOwnerType = async (stopId: string, ownerType: 'person' | 'automation') => {
+    if (!canEdit) throw new Error('No permission to edit');
+
+    const { data, error } = await supabase
+      .from('stops')
+      .update({
+        owner_type: ownerType,
+        updated_by: user?.id,
+      })
+      .eq('id', stopId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Update local state
+    setStops(prev => {
+      const newStops = { ...prev };
+      for (const trainId in newStops) {
+        newStops[trainId] = newStops[trainId].map(s => 
+          s.id === stopId ? data : s
+        );
+      }
+      return newStops;
+    });
+
+    return data;
+  };
+
   const getActiveRelease = () => releaseTrains.find(r => r.is_active);
   const getPastReleases = () => releaseTrains.filter(r => !r.is_active);
 
@@ -327,6 +356,7 @@ export function useReleaseTrains(appId: string | null, platform: Platform | null
     createReleaseTrain,
     updateStopStatus,
     updateStopOwner,
+    updateStopOwnerType,
     advanceToNextStop,
     startTrain,
     resetTrain,
