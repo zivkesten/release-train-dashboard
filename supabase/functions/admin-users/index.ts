@@ -11,7 +11,7 @@ interface CreateUserRequest {
   password: string;
   displayName: string;
   position?: string;
-  role: 'admin' | 'dev' | 'qa';
+  role: 'admin' | 'dev' | 'qa' | 'product_manager';
 }
 
 interface DeleteUserRequest {
@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
       }
 
       // Validate role
-      if (!['admin', 'dev', 'qa'].includes(role)) {
+      if (!['admin', 'dev', 'qa', 'product_manager'].includes(role)) {
         return new Response(
           JSON.stringify({ error: 'Invalid role' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
