@@ -169,7 +169,7 @@ export function TrainTrack({
                     >
                       <div
                         className={cn(
-                          'inline-block w-full max-w-xl',
+                          'inline-block',
                           !isMobile && isSelected && 'ring-2 ring-primary rounded-lg',
                           (isMobile && isAdmin) && 'cursor-pointer',
                           !isMobile && 'cursor-pointer'
