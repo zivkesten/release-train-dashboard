@@ -40,6 +40,7 @@ interface StationEditPanelProps {
   onBlock: () => void;
   onUnblock: () => void;
   onOwnerChange?: (ownerName: string) => void;
+  onOwnerTypeChange?: (ownerType: 'person' | 'automation') => void;
   showCloseButton?: boolean;
 }
 
@@ -54,6 +55,7 @@ export function StationEditPanel({
   onBlock,
   onUnblock,
   onOwnerChange,
+  onOwnerTypeChange,
   showCloseButton = false,
 }: StationEditPanelProps) {
   if (!stop) {
@@ -124,7 +126,11 @@ export function StationEditPanel({
         {/* Owner Type */}
         <div className="space-y-2">
           <Label>Owner Type</Label>
-          <Select disabled={isDisabled} value={stop.ownerType}>
+          <Select 
+            disabled={isDisabled} 
+            value={stop.ownerType}
+            onValueChange={(value) => onOwnerTypeChange?.(value as 'person' | 'automation')}
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>

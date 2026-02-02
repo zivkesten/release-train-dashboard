@@ -23,6 +23,7 @@ interface TrainTrackProps {
   onAdvance: () => void;
   onAddNote: (stopId: string, author: string, text: string) => void;
   onOwnerChange: (stopId: string, ownerName: string) => void;
+  onOwnerTypeChange: (stopId: string, ownerType: 'person' | 'automation') => void;
 }
 
 export function TrainTrack({
@@ -33,6 +34,7 @@ export function TrainTrack({
   onAdvance,
   onAddNote,
   onOwnerChange,
+  onOwnerTypeChange,
 }: TrainTrackProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [trainMoving, setTrainMoving] = useState(false);
@@ -108,6 +110,7 @@ export function TrainTrack({
     onBlock: () => onUpdateStatus(stop.id, 'blocked'),
     onUnblock: () => onUpdateStatus(stop.id, 'in-progress'),
     onOwnerChange: (ownerName: string) => onOwnerChange(stop.id, ownerName),
+    onOwnerTypeChange: (ownerType: 'person' | 'automation') => onOwnerTypeChange(stop.id, ownerType),
   });
 
   return (
@@ -224,6 +227,7 @@ export function TrainTrack({
                       onBlock: () => {},
                       onUnblock: () => {},
                       onOwnerChange: () => {},
+                      onOwnerTypeChange: () => {},
                     })}
                   />
                 </motion.div>
@@ -255,6 +259,7 @@ export function TrainTrack({
                 onBlock: () => {},
                 onUnblock: () => {},
                 onOwnerChange: () => {},
+                onOwnerTypeChange: () => {},
               })}
             />
           </DrawerContent>
