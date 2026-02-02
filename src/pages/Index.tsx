@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApps } from '@/hooks/useApps';
 import { useReleaseTrains, Platform, Stop, Note } from '@/hooks/useReleaseTrains';
+import { useProfiles } from '@/hooks/useProfiles';
 import { STOP_CONFIGS } from '@/types/release';
 import { Header } from '@/components/Header';
 import { TrainTrack } from '@/components/TrainTrack';
@@ -43,6 +44,7 @@ const Index = () => {
   const { user, loading: authLoading, canEdit, isAdmin } = useAuth();
   const navigate = useNavigate();
   const { apps, loading: appsLoading } = useApps();
+  const { profiles } = useProfiles();
 
   // Selection state
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
@@ -67,6 +69,7 @@ const Index = () => {
     loading: trainsLoading,
     createReleaseTrain,
     updateStopStatus,
+    updateStopOwner,
     advanceToNextStop,
     startTrain,
     resetTrain,
@@ -228,6 +231,15 @@ const Index = () => {
   const handleAddNote = async (stopId: string, author: string, text: string) => {
     try {
       await addNote(stopId, text);
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleOwnerChange = async (stopId: string, ownerName: string) => {
+    try {
+      await updateStopOwner(stopId, ownerName);
+      toast.success('Owner updated');
     } catch (err: any) {
       toast.error(err.message);
     }
@@ -489,9 +501,11 @@ const Index = () => {
                     <TrainTrack
                       run={releaseRun as any}
                       isReadOnly={isViewingPast || !canEdit}
+                      profiles={profiles}
                       onUpdateStatus={handleUpdateStatus}
                       onAdvance={handleAdvance}
                       onAddNote={handleAddNote}
+                      onOwnerChange={handleOwnerChange}
                     />
                   </motion.div>
                 </AnimatePresence>
