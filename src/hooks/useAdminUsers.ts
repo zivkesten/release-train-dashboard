@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
-type AppRole = 'admin' | 'dev' | 'qa';
+type AppRole = 'admin' | 'dev' | 'qa' | 'product_manager';
 
 export interface UserWithDetails {
   id: string;

@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-type AppRole = 'admin' | 'dev' | 'qa';
+type AppRole = 'admin' | 'dev' | 'qa' | 'product_manager';
 
 interface Profile {
   id: string;
@@ -125,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const isAdmin = roles.includes('admin');
-  const canEdit = roles.includes('admin') || roles.includes('dev') || roles.includes('qa');
+  const canEdit = roles.includes('admin') || roles.includes('dev') || roles.includes('qa') || roles.includes('product_manager');
 
   return (
     <AuthContext.Provider 
