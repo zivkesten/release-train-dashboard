@@ -11,15 +11,17 @@ export interface ReleaseWithDetails {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  deadline: string | null;
   total_stops: number;
   completed_stops: number;
   in_progress_stops: number;
   blocked_stops: number;
   current_stop_title: string | null;
+  is_complete: boolean;
 }
 
 export function useAllReleases() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [releases, setReleases] = useState<ReleaseWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -76,6 +78,7 @@ export function useAllReleases() {
         const inProgressStops = trainStops.filter(s => s.status === 'in_progress').length;
         const blockedStops = trainStops.filter(s => s.status === 'blocked').length;
         const currentStop = trainStops.find(s => s.status === 'in_progress');
+        const isComplete = trainStops.length > 0 && completedStops === trainStops.length;
 
         return {
           id: train.id,
@@ -86,11 +89,13 @@ export function useAllReleases() {
           is_active: train.is_active,
           created_at: train.created_at,
           updated_at: train.updated_at,
+          deadline: train.deadline,
           total_stops: trainStops.length,
           completed_stops: completedStops,
           in_progress_stops: inProgressStops,
           blocked_stops: blockedStops,
           current_stop_title: currentStop?.title || null,
+          is_complete: isComplete,
         };
       });
 
@@ -102,6 +107,30 @@ export function useAllReleases() {
     }
   }, [user]);
 
+  const updateVersion = async (releaseId: string, newVersion: string) => {
+    if (!isAdmin) throw new Error('Only admins can update version');
+
+    const { error } = await supabase
+      .from('release_trains')
+      .update({ version: newVersion })
+      .eq('id', releaseId);
+
+    if (error) throw error;
+    await fetchAllReleases();
+  };
+
+  const updateDeadline = async (releaseId: string, deadline: string | null) => {
+    if (!isAdmin) throw new Error('Only admins can update deadline');
+
+    const { error } = await supabase
+      .from('release_trains')
+      .update({ deadline })
+      .eq('id', releaseId);
+
+    if (error) throw error;
+    await fetchAllReleases();
+  };
+
   useEffect(() => {
     fetchAllReleases();
   }, [fetchAllReleases]);
@@ -111,5 +140,7 @@ export function useAllReleases() {
     loading,
     error,
     refetch: fetchAllReleases,
+    updateVersion,
+    updateDeadline,
   };
 }
