@@ -513,8 +513,10 @@ const Index = () => {
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {isViewingPast 
+                  {isViewingPast && !isAdmin
                     ? 'Viewing past release (read-only)'
+                    : isViewingPast && isAdmin
+                    ? 'Viewing past release (admin edit enabled)'
                     : allNotStarted
                     ? 'Ready to start • Click "Start the Train!" to begin'
                     : `Current release train • ${selectedPlatform?.toUpperCase()}`
@@ -534,7 +536,7 @@ const Index = () => {
                   >
                     <TrainTrack
                       run={releaseRun as any}
-                      isReadOnly={isViewingPast || !canEdit}
+                      isReadOnly={isAdmin ? false : (isViewingPast || !canEdit)}
                       profiles={profiles}
                       onUpdateStatus={handleUpdateStatus}
                       onAdvance={handleAdvance}
