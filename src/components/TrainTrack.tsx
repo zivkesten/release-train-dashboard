@@ -165,22 +165,28 @@ export function TrainTrack({
                       className={cn(
                         'flex-1',
                         isCurrent && 'ml-8',
-                        !isMobile && isSelected && 'ring-2 ring-primary rounded-lg',
-                        (isMobile && isAdmin) && 'cursor-pointer',
-                        !isMobile && 'cursor-pointer'
                       )}
-                      onClick={() => handleCardClick(stop)}
                     >
-                      <StationCard
-                        stop={stop}
-                        isCurrent={isCurrent}
-                        isReadOnly={isReadOnly}
-                        onStart={() => onUpdateStatus(stop.id, 'in-progress')}
-                        onComplete={() => handleComplete(stop.id)}
-                        onBlock={() => onUpdateStatus(stop.id, 'blocked')}
-                        onUnblock={() => onUpdateStatus(stop.id, 'in-progress')}
-                        onAddNote={(text) => onAddNote(stop.id, 'You', text)}
-                      />
+                      <div
+                        className={cn(
+                          'inline-block w-full max-w-xl',
+                          !isMobile && isSelected && 'ring-2 ring-primary rounded-lg',
+                          (isMobile && isAdmin) && 'cursor-pointer',
+                          !isMobile && 'cursor-pointer'
+                        )}
+                        onClick={() => handleCardClick(stop)}
+                      >
+                        <StationCard
+                          stop={stop}
+                          isCurrent={isCurrent}
+                          isReadOnly={isReadOnly}
+                          onStart={() => onUpdateStatus(stop.id, 'in-progress')}
+                          onComplete={() => handleComplete(stop.id)}
+                          onBlock={() => onUpdateStatus(stop.id, 'blocked')}
+                          onUnblock={() => onUpdateStatus(stop.id, 'in-progress')}
+                          onAddNote={(text) => onAddNote(stop.id, 'You', text)}
+                        />
+                      </div>
                     </div>
                   </div>
                 );
