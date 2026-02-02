@@ -261,7 +261,7 @@ export type Database = {
       is_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "admin" | "dev" | "qa"
+      app_role: "admin" | "dev" | "qa" | "product_manager"
       platform_type: "ios" | "android"
       stop_status: "not_started" | "in_progress" | "done" | "blocked"
     }
@@ -391,7 +391,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "dev", "qa"],
+      app_role: ["admin", "dev", "qa", "product_manager"],
       platform_type: ["ios", "android"],
       stop_status: ["not_started", "in_progress", "done", "blocked"],
     },
