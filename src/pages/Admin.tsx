@@ -1,14 +1,16 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdminUsers, UserWithDetails } from '@/hooks/useAdminUsers';
 import { useApps } from '@/hooks/useApps';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Table,
   TableBody,
@@ -44,7 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, Plus, Trash2, UserPlus, Loader2, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, UserPlus, Loader2, Eye, EyeOff, Download, Upload, Database, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { QRCodeGenerator } from '@/components/QRCodeGenerator';
@@ -76,6 +78,12 @@ export default function Admin() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedRole, setSelectedRole] = useState<AppRole>('dev');
   const [isAddingRole, setIsAddingRole] = useState(false);
+
+  // Export/Import state
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importResult, setImportResult] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (authLoading) {
     return (
@@ -203,6 +211,124 @@ export default function Admin() {
     }
   };
 
+  // Export all data
+  const handleExportData = async () => {
+    setIsExporting(true);
+    try {
+      // Fetch all data from relevant tables
+      const [appsRes, trainsRes, stopsRes, notesRes] = await Promise.all([
+        supabase.from('apps').select('*'),
+        supabase.from('release_trains').select('*'),
+        supabase.from('stops').select('*'),
+        supabase.from('notes').select('*'),
+      ]);
+
+      if (appsRes.error) throw appsRes.error;
+      if (trainsRes.error) throw trainsRes.error;
+      if (stopsRes.error) throw stopsRes.error;
+      if (notesRes.error) throw notesRes.error;
+
+      const exportData = {
+        version: '1.0',
+        exportedAt: new Date().toISOString(),
+        data: {
+          apps: appsRes.data || [],
+          release_trains: trainsRes.data || [],
+          stops: stopsRes.data || [],
+          notes: notesRes.data || [],
+        },
+      };
+
+      // Download as JSON file
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `release-train-export-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success('Data exported successfully');
+    } catch (err: any) {
+      console.error('Export error:', err);
+      toast.error(err.message || 'Failed to export data');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // Import data from JSON file
+  const handleImportData = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    setImportResult(null);
+
+    try {
+      const content = await file.text();
+      const importData = JSON.parse(content);
+
+      if (!importData.version || !importData.data) {
+        throw new Error('Invalid export file format');
+      }
+
+      const { apps, release_trains, stops, notes } = importData.data;
+      let imported = { apps: 0, trains: 0, stops: 0, notes: 0 };
+
+      // Import apps (skip duplicates by ID)
+      if (apps?.length) {
+        for (const app of apps) {
+          const { error } = await supabase.from('apps').upsert(app, { onConflict: 'id' });
+          if (!error) imported.apps++;
+        }
+      }
+
+      // Import release trains (skip duplicates by ID)
+      if (release_trains?.length) {
+        for (const train of release_trains) {
+          const { error } = await supabase.from('release_trains').upsert(train, { onConflict: 'id' });
+          if (!error) imported.trains++;
+        }
+      }
+
+      // Import stops (skip duplicates by ID)
+      if (stops?.length) {
+        for (const stop of stops) {
+          const { error } = await supabase.from('stops').upsert(stop, { onConflict: 'id' });
+          if (!error) imported.stops++;
+        }
+      }
+
+      // Import notes (skip duplicates by ID)
+      if (notes?.length) {
+        for (const note of notes) {
+          const { error } = await supabase.from('notes').upsert(note, { onConflict: 'id' });
+          if (!error) imported.notes++;
+        }
+      }
+
+      setImportResult(
+        `Successfully imported: ${imported.apps} apps, ${imported.trains} releases, ${imported.stops} stops, ${imported.notes} notes`
+      );
+      toast.success('Data imported successfully');
+      
+      // Refresh apps list
+      window.location.reload();
+    } catch (err: any) {
+      console.error('Import error:', err);
+      toast.error(err.message || 'Failed to import data');
+      setImportResult(null);
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -223,6 +349,7 @@ export default function Admin() {
           <TabsList>
             <TabsTrigger value="users">Users & Roles</TabsTrigger>
             <TabsTrigger value="apps">Apps</TabsTrigger>
+            <TabsTrigger value="data">Data</TabsTrigger>
           </TabsList>
 
           {/* Users Tab */}
@@ -576,6 +703,106 @@ export default function Admin() {
                     </TableBody>
                   </Table>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Data Tab */}
+          <TabsContent value="data">
+            <div className="grid gap-6 md:grid-cols-2">
+              {/* Export Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Download className="w-5 h-5" />
+                    Export Data
+                  </CardTitle>
+                  <CardDescription>
+                    Download all apps, releases, stops, and notes as a JSON file.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button 
+                    onClick={handleExportData} 
+                    disabled={isExporting}
+                    className="w-full"
+                  >
+                    {isExporting ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Download className="w-4 h-4 mr-2" />
+                    )}
+                    Export All Data
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Import Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Upload className="w-5 h-5" />
+                    Import Data
+                  </CardTitle>
+                  <CardDescription>
+                    Load previously exported data from a JSON file. Existing records with the same ID will be updated.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept=".json"
+                    onChange={handleImportData}
+                    className="hidden"
+                  />
+                  <Button 
+                    onClick={() => fileInputRef.current?.click()} 
+                    disabled={isImporting}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    {isImporting ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Upload className="w-4 h-4 mr-2" />
+                    )}
+                    Select File to Import
+                  </Button>
+
+                  {importResult && (
+                    <Alert className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800">
+                      <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      <AlertDescription className="text-green-700 dark:text-green-300">
+                        {importResult}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Info Card */}
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="w-5 h-5" />
+                  About Data Management
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground space-y-2">
+                <p>
+                  <strong>Export</strong> downloads all your apps, release trains, stops, and notes as a single JSON file.
+                  This is useful for backups or migrating data between environments.
+                </p>
+                <p>
+                  <strong>Import</strong> will load data from a previously exported file. Records are matched by ID:
+                </p>
+                <ul className="list-disc list-inside ml-4 space-y-1">
+                  <li>New records will be created</li>
+                  <li>Existing records (same ID) will be updated with the imported values</li>
+                  <li>User data and roles are not included in exports for security</li>
+                </ul>
               </CardContent>
             </Card>
           </TabsContent>
