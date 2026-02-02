@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAllReleases, ReleaseWithDetails } from '@/hooks/useAllReleases';
@@ -8,6 +8,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { 
   Train, 
   Loader2, 
@@ -19,16 +30,27 @@ import {
   AlertCircle,
   ArrowRight,
   LayoutDashboard,
-  Settings
+  Settings,
+  Pencil,
+  CalendarIcon,
+  X
 } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow, isPast, differenceInDays } from 'date-fns';
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 const Dashboard = () => {
   const { user, loading: authLoading, isAdmin } = useAuth();
   const navigate = useNavigate();
-  const { releases, loading: releasesLoading } = useAllReleases();
+  const { releases, loading: releasesLoading, updateVersion, updateDeadline, refetch } = useAllReleases();
   const { apps } = useApps();
+
+  // Edit version dialog
+  const [editingRelease, setEditingRelease] = useState<ReleaseWithDetails | null>(null);
+  const [newVersion, setNewVersion] = useState('');
+  const [newDeadline, setNewDeadline] = useState<Date | undefined>();
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -46,8 +68,9 @@ const Dashboard = () => {
 
   if (!user) return null;
 
-  const activeReleases = releases.filter(r => r.is_active);
-  const completedReleases = releases.filter(r => !r.is_active);
+  // Separate by completion status based on stops, not is_active flag
+  const activeReleases = releases.filter(r => !r.is_complete);
+  const completedReleases = releases.filter(r => r.is_complete);
   
   // Stats
   const totalActive = activeReleases.length;
@@ -58,11 +81,39 @@ const Dashboard = () => {
     navigate(`/release/${release.app_id}/${release.platform}/${release.id}`);
   };
 
+  const handleEditClick = (e: React.MouseEvent, release: ReleaseWithDetails) => {
+    e.stopPropagation();
+    setEditingRelease(release);
+    setNewVersion(release.version);
+    setNewDeadline(release.deadline ? new Date(release.deadline) : undefined);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingRelease) return;
+    
+    setIsSaving(true);
+    try {
+      if (newVersion !== editingRelease.version) {
+        await updateVersion(editingRelease.id, newVersion);
+      }
+      const newDeadlineStr = newDeadline ? newDeadline.toISOString() : null;
+      if (newDeadlineStr !== editingRelease.deadline) {
+        await updateDeadline(editingRelease.id, newDeadlineStr);
+      }
+      toast.success('Release updated');
+      setEditingRelease(null);
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const getStatusBadge = (release: ReleaseWithDetails) => {
     if (release.blocked_stops > 0) {
       return <Badge variant="destructive" className="gap-1"><AlertCircle className="w-3 h-3" /> Blocked</Badge>;
     }
-    if (release.completed_stops === release.total_stops) {
+    if (release.is_complete) {
       return <Badge className="gap-1 bg-status-done text-white"><CheckCircle2 className="w-3 h-3" /> Complete</Badge>;
     }
     if (release.in_progress_stops > 0) {
@@ -74,6 +125,39 @@ const Dashboard = () => {
   const getProgress = (release: ReleaseWithDetails) => {
     if (release.total_stops === 0) return 0;
     return (release.completed_stops / release.total_stops) * 100;
+  };
+
+  const getDeadlineBadge = (deadline: string | null) => {
+    if (!deadline) return null;
+    
+    const deadlineDate = new Date(deadline);
+    const daysUntil = differenceInDays(deadlineDate, new Date());
+    const isOverdue = isPast(deadlineDate);
+    
+    if (isOverdue) {
+      return (
+        <Badge variant="destructive" className="gap-1 text-xs">
+          <CalendarIcon className="w-3 h-3" />
+          Overdue
+        </Badge>
+      );
+    }
+    
+    if (daysUntil <= 3) {
+      return (
+        <Badge variant="secondary" className="gap-1 text-xs bg-amber-500/20 text-amber-600 border-amber-500/30">
+          <CalendarIcon className="w-3 h-3" />
+          {daysUntil === 0 ? 'Due today' : `${daysUntil}d left`}
+        </Badge>
+      );
+    }
+    
+    return (
+      <Badge variant="outline" className="gap-1 text-xs">
+        <CalendarIcon className="w-3 h-3" />
+        {format(deadlineDate, 'MMM d')}
+      </Badge>
+    );
   };
 
   return (
@@ -205,10 +289,25 @@ const Dashboard = () => {
                               )}
                               <div>
                                 <CardTitle className="text-base">{release.app_name}</CardTitle>
-                                <CardDescription>{release.version}</CardDescription>
+                                <CardDescription className="flex items-center gap-1">
+                                  {release.version}
+                                  {isAdmin && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-5 w-5 opacity-0 group-hover:opacity-100"
+                                      onClick={(e) => handleEditClick(e, release)}
+                                    >
+                                      <Pencil className="w-3 h-3" />
+                                    </Button>
+                                  )}
+                                </CardDescription>
                               </div>
                             </div>
-                            {getStatusBadge(release)}
+                            <div className="flex flex-col items-end gap-1">
+                              {getStatusBadge(release)}
+                              {getDeadlineBadge(release.deadline)}
+                            </div>
                           </div>
                         </CardHeader>
                         <CardContent>
@@ -269,7 +368,19 @@ const Dashboard = () => {
                               )}
                               <div>
                                 <CardTitle className="text-base">{release.app_name}</CardTitle>
-                                <CardDescription>{release.version}</CardDescription>
+                                <CardDescription className="flex items-center gap-1">
+                                  {release.version}
+                                  {isAdmin && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-5 w-5 opacity-0 group-hover:opacity-100"
+                                      onClick={(e) => handleEditClick(e, release)}
+                                    >
+                                      <Pencil className="w-3 h-3" />
+                                    </Button>
+                                  )}
+                                </CardDescription>
                               </div>
                             </div>
                             <Badge className="gap-1 bg-status-done/80 text-white">
@@ -295,6 +406,72 @@ const Dashboard = () => {
           </div>
         )}
       </div>
+
+      {/* Edit Release Dialog */}
+      <Dialog open={!!editingRelease} onOpenChange={(open) => !open && setEditingRelease(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Release</DialogTitle>
+            <DialogDescription>
+              Update the version number and deadline for this release.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Version</label>
+              <Input
+                value={newVersion}
+                onChange={(e) => setNewVersion(e.target.value)}
+                placeholder="e.g., v3.2.0"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Deadline (optional)</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !newDeadline && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {newDeadline ? format(newDeadline, "PPP") : "Pick a deadline"}
+                    {newDeadline && (
+                      <X 
+                        className="ml-auto h-4 w-4 hover:text-destructive" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setNewDeadline(undefined);
+                        }}
+                      />
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={newDeadline}
+                    onSelect={setNewDeadline}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingRelease(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={isSaving}>
+              {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

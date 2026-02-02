@@ -134,6 +134,7 @@ export type Database = {
         Row: {
           app_id: string
           created_at: string
+          deadline: string | null
           id: string
           is_active: boolean
           platform: Database["public"]["Enums"]["platform_type"]
@@ -143,6 +144,7 @@ export type Database = {
         Insert: {
           app_id: string
           created_at?: string
+          deadline?: string | null
           id?: string
           is_active?: boolean
           platform: Database["public"]["Enums"]["platform_type"]
@@ -152,6 +154,7 @@ export type Database = {
         Update: {
           app_id?: string
           created_at?: string
+          deadline?: string | null
           id?: string
           is_active?: boolean
           platform?: Database["public"]["Enums"]["platform_type"]
