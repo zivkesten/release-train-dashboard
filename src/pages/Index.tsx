@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApps } from '@/hooks/useApps';
@@ -37,19 +37,22 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { History, Sparkles, Plus, Train, Loader2, AlertCircle, RotateCcw, Rocket } from 'lucide-react';
+import { History, Sparkles, Plus, Train, Loader2, AlertCircle, RotateCcw, Rocket, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
 const Index = () => {
   const { user, loading: authLoading, canEdit, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const { appId: urlAppId, platform: urlPlatform, releaseId: urlReleaseId } = useParams();
   const { apps, loading: appsLoading } = useApps();
   const { profiles } = useProfiles();
 
-  // Selection state
-  const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
-  const [selectedPlatform, setSelectedPlatform] = useState<Platform | null>(null);
-  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  // Selection state - use URL params if available
+  const [selectedAppId, setSelectedAppId] = useState<string | null>(urlAppId || null);
+  const [selectedPlatform, setSelectedPlatform] = useState<Platform | null>(
+    (urlPlatform as Platform) || null
+  );
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(urlReleaseId || null);
   const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
 
   // New release dialog
@@ -86,19 +89,32 @@ const Index = () => {
     }
   }, [user, authLoading, navigate]);
 
-  // Auto-select first app if available
+  // Set from URL params when available
   useEffect(() => {
-    if (apps.length > 0 && !selectedAppId) {
+    if (urlAppId && !selectedAppId) {
+      setSelectedAppId(urlAppId);
+    }
+    if (urlPlatform && !selectedPlatform) {
+      setSelectedPlatform(urlPlatform as Platform);
+    }
+    if (urlReleaseId && !selectedRunId) {
+      setSelectedRunId(urlReleaseId);
+    }
+  }, [urlAppId, urlPlatform, urlReleaseId, selectedAppId, selectedPlatform, selectedRunId]);
+
+  // Auto-select first app if available and no URL param
+  useEffect(() => {
+    if (apps.length > 0 && !selectedAppId && !urlAppId) {
       setSelectedAppId(apps[0].id);
     }
-  }, [apps, selectedAppId]);
+  }, [apps, selectedAppId, urlAppId]);
 
-  // Auto-select platform if not set
+  // Auto-select platform if not set and no URL param
   useEffect(() => {
-    if (!selectedPlatform) {
+    if (!selectedPlatform && !urlPlatform) {
       setSelectedPlatform('ios');
     }
-  }, [selectedPlatform]);
+  }, [selectedPlatform, urlPlatform]);
 
   if (authLoading || appsLoading) {
     return (
@@ -309,6 +325,14 @@ const Index = () => {
           <div className="flex flex-wrap items-center justify-between gap-4">
             {/* Logo & Title */}
             <div className="flex items-center gap-3">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => navigate('/')}
+                className="mr-1"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
               <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary text-primary-foreground">
                 <Train className="w-5 h-5" />
               </div>
