@@ -49,7 +49,7 @@ import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { QRCodeGenerator } from '@/components/QRCodeGenerator';
 
-type AppRole = 'admin' | 'dev' | 'qa';
+type AppRole = 'admin' | 'dev' | 'qa' | 'product_manager';
 
 export default function Admin() {
   const { isAdmin, loading: authLoading, user } = useAuth();
@@ -312,6 +312,7 @@ export default function Admin() {
                             <SelectItem value="admin">Admin - Full access</SelectItem>
                             <SelectItem value="dev">Developer - Edit releases</SelectItem>
                             <SelectItem value="qa">QA - Edit releases</SelectItem>
+                            <SelectItem value="product_manager">Product Manager - Edit releases</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -418,6 +419,7 @@ export default function Admin() {
                                       <SelectItem value="admin">Admin</SelectItem>
                                       <SelectItem value="dev">Developer</SelectItem>
                                       <SelectItem value="qa">QA</SelectItem>
+                                      <SelectItem value="product_manager">Product Manager</SelectItem>
                                     </SelectContent>
                                   </Select>
                                   <DialogFooter>
