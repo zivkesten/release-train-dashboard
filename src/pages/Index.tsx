@@ -373,6 +373,27 @@ const Index = () => {
           </Card>
         ) : (
           <div className="flex gap-6">
+            {/* Desktop: Left Sidebar with Analytics & Past Runs */}
+            <div className="hidden lg:block w-80 flex-shrink-0">
+              <div className="sticky top-24 space-y-4">
+                {/* Analytics */}
+                {releaseRun && (
+                  <ReleaseAnalytics run={releaseRun as any} />
+                )}
+                
+                {/* Past Runs */}
+                {pastReleases.length > 0 && (
+                  <PastRunsPanel
+                    pastRuns={pastReleases.map(r => convertToReleaseRun(r)!).filter(Boolean) as any[]}
+                    currentRunId={activeRelease?.id || ''}
+                    selectedRunId={selectedRunId}
+                    onSelectRun={(id) => setSelectedRunId(id === activeRelease?.id ? null : id)}
+                    getProgress={(run) => getProgress(releaseTrains.find(r => r.id === run.id))}
+                  />
+                )}
+              </div>
+            </div>
+
             {/* Main Content */}
             <div className="flex-1 min-w-0">
               {/* Release Title & Actions */}
@@ -482,27 +503,6 @@ const Index = () => {
                   <ReleaseAnalytics run={releaseRun as any} />
                 </div>
               )}
-            </div>
-
-            {/* Desktop: Sidebar with Analytics & Past Runs */}
-            <div className="hidden lg:block w-72 flex-shrink-0 space-y-4">
-              <div className="sticky top-24 space-y-4">
-                {/* Analytics */}
-                {releaseRun && (
-                  <ReleaseAnalytics run={releaseRun as any} />
-                )}
-                
-                {/* Past Runs */}
-                {pastReleases.length > 0 && (
-                  <PastRunsPanel
-                    pastRuns={pastReleases.map(r => convertToReleaseRun(r)!).filter(Boolean) as any[]}
-                    currentRunId={activeRelease?.id || ''}
-                    selectedRunId={selectedRunId}
-                    onSelectRun={(id) => setSelectedRunId(id === activeRelease?.id ? null : id)}
-                    getProgress={(run) => getProgress(releaseTrains.find(r => r.id === run.id))}
-                  />
-                )}
-              </div>
             </div>
           </div>
         )}

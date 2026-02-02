@@ -119,39 +119,39 @@ export function ReleaseAnalytics({ run }: ReleaseAnalyticsProps) {
   const maxDuration = getMaxDuration();
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <Timer className="w-4 h-4" />
+    <Card className="shadow-sm">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Timer className="w-5 h-5" />
           Release Analytics
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-5">
         {/* Summary Stats */}
         <div className="grid grid-cols-3 gap-3 text-center">
-          <div className="bg-muted/50 rounded-lg p-2">
-            <Clock className="w-4 h-4 mx-auto mb-1 text-muted-foreground" />
+          <div className="bg-muted/50 rounded-lg p-3">
+            <Clock className="w-5 h-5 mx-auto mb-1.5 text-muted-foreground" />
             <p className="text-xs text-muted-foreground">Total Time</p>
-            <p className="font-semibold text-sm">{formatDuration(analytics.totalDuration)}</p>
+            <p className="font-semibold">{formatDuration(analytics.totalDuration)}</p>
           </div>
-          <div className="bg-muted/50 rounded-lg p-2">
-            <TrendingUp className="w-4 h-4 mx-auto mb-1 text-muted-foreground" />
+          <div className="bg-muted/50 rounded-lg p-3">
+            <TrendingUp className="w-5 h-5 mx-auto mb-1.5 text-muted-foreground" />
             <p className="text-xs text-muted-foreground">Avg Step</p>
-            <p className="font-semibold text-sm">{formatDuration(analytics.averageStepTime)}</p>
+            <p className="font-semibold">{formatDuration(analytics.averageStepTime)}</p>
           </div>
-          <div className="bg-muted/50 rounded-lg p-2">
-            <Timer className="w-4 h-4 mx-auto mb-1 text-muted-foreground" />
+          <div className="bg-muted/50 rounded-lg p-3">
+            <Timer className="w-5 h-5 mx-auto mb-1.5 text-muted-foreground" />
             <p className="text-xs text-muted-foreground">Progress</p>
-            <p className="font-semibold text-sm">{analytics.completedSteps}/{run.stops.length}</p>
+            <p className="font-semibold">{analytics.completedSteps}/{run.stops.length}</p>
           </div>
         </div>
 
         {/* Step Durations */}
-        <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
             Step Durations
           </p>
-          <div className="space-y-1.5 max-h-48 overflow-y-auto">
+          <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
             {analytics.stepDurations.map(step => (
               <div key={step.number} className="flex items-center gap-2 text-xs">
                 <span className="w-5 text-muted-foreground">{step.number}.</span>
