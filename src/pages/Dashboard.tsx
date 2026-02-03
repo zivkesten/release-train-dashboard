@@ -1,9 +1,10 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useAllReleases, ReleaseWithDetails } from '@/hooks/useAllReleases';
+import { useAllReleases, ReleaseWithDetails, StopDetails } from '@/hooks/useAllReleases';
 import { useApps } from '@/hooks/useApps';
 import { UserMenu } from '@/components/UserMenu';
+import { StopsEditorDialog } from '@/components/StopsEditorDialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -47,7 +48,8 @@ import {
   Archive,
   ChevronDown,
   ChevronUp,
-  Trash2
+  Trash2,
+  ListChecks
 } from 'lucide-react';
 import { format, formatDistanceToNow, isPast, differenceInDays } from 'date-fns';
 import { motion } from 'framer-motion';
@@ -64,7 +66,7 @@ import {
 const Dashboard = () => {
   const { user, loading: authLoading, isAdmin } = useAuth();
   const navigate = useNavigate();
-  const { releases, loading: releasesLoading, updateVersion, updateDeadline, deleteRelease, refetch } = useAllReleases();
+  const { releases, loading: releasesLoading, updateVersion, updateDeadline, deleteRelease, fetchReleaseStops, updateReleaseStops, refetch } = useAllReleases();
   const { apps } = useApps();
 
   // Edit version dialog
@@ -76,6 +78,11 @@ const Dashboard = () => {
   // Delete confirmation
   const [releaseToDelete, setReleaseToDelete] = useState<ReleaseWithDetails | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Stops editor
+  const [editingStopsRelease, setEditingStopsRelease] = useState<ReleaseWithDetails | null>(null);
+  const [currentStops, setCurrentStops] = useState<StopDetails[]>([]);
+  const [isLoadingStops, setIsLoadingStops] = useState(false);
   
   // Archive view
   const [showArchive, setShowArchive] = useState(false);
@@ -234,6 +241,35 @@ const Dashboard = () => {
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const handleEditStopsClick = async (release: ReleaseWithDetails) => {
+    setIsLoadingStops(true);
+    try {
+      const stops = await fetchReleaseStops(release.id);
+      setCurrentStops(stops);
+      setEditingStopsRelease(release);
+    } catch (err: any) {
+      toast.error('Failed to load stops: ' + err.message);
+    } finally {
+      setIsLoadingStops(false);
+    }
+  };
+
+  const handleSaveStops = async (
+    stopsToAdd: Array<{
+      number: number;
+      title: string;
+      description: string;
+      ownerType: 'person' | 'automation';
+      ownerName: string;
+    }>,
+    stopIdsToDelete: string[]
+  ) => {
+    if (!editingStopsRelease) return;
+    
+    await updateReleaseStops(editingStopsRelease.id, stopsToAdd, stopIdsToDelete);
+    toast.success('Stops updated successfully');
   };
 
 
@@ -798,6 +834,21 @@ const Dashboard = () => {
               </Popover>
             </div>
           </div>
+          <div className="pt-2 border-t">
+            <Button 
+              variant="outline" 
+              className="w-full gap-2"
+              onClick={() => editingRelease && handleEditStopsClick(editingRelease)}
+              disabled={isLoadingStops}
+            >
+              {isLoadingStops ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <ListChecks className="w-4 h-4" />
+              )}
+              Edit Stops
+            </Button>
+          </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button 
               variant="destructive" 
@@ -817,6 +868,16 @@ const Dashboard = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Stops Editor Dialog */}
+      <StopsEditorDialog
+        open={!!editingStopsRelease}
+        onOpenChange={(open) => !open && setEditingStopsRelease(null)}
+        releaseId={editingStopsRelease?.id || ''}
+        releaseName={`${editingStopsRelease?.app_name} ${editingStopsRelease?.version}`}
+        currentStops={currentStops}
+        onSave={handleSaveStops}
+      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!releaseToDelete} onOpenChange={(open) => !open && setReleaseToDelete(null)}>
