@@ -59,22 +59,6 @@ const Dashboard = () => {
   const [showArchive, setShowArchive] = useState(false);
   const [expandedCompletedSection, setExpandedCompletedSection] = useState(true);
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      navigate('/auth');
-    }
-  }, [user, authLoading, navigate]);
-
-  if (authLoading || releasesLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!user) return null;
-
   // Helper to compare version strings (simple semver comparison)
   const compareVersions = (a: string, b: string): number => {
     const partsA = a.replace(/[^0-9.]/g, '').split('.').map(Number);
@@ -151,6 +135,22 @@ const Dashboard = () => {
       }
     };
   }, [releases]);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate('/auth');
+    }
+  }, [user, authLoading, navigate]);
+
+  if (authLoading || releasesLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   const handleReleaseClick = (release: ReleaseWithDetails) => {
     navigate(`/release/${release.app_id}/${release.platform}/${release.id}`);
