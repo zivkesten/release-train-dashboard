@@ -5,13 +5,34 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Input validation constants
+const MAX_EMAIL_LENGTH = 254;
+const MAX_DISPLAY_NAME_LENGTH = 100;
+const MAX_POSITION_LENGTH = 100;
+const MIN_PASSWORD_LENGTH = 6;
+const MAX_PASSWORD_LENGTH = 128;
+const VALID_ROLES = ['admin', 'dev', 'qa', 'product_manager'] as const;
+
+// Generic error codes to prevent information leakage
+const ERROR_CODES = {
+  UNAUTHORIZED: 'UNAUTHORIZED',
+  FORBIDDEN: 'FORBIDDEN',
+  INVALID_REQUEST: 'INVALID_REQUEST',
+  USER_EXISTS: 'USER_EXISTS',
+  NOT_FOUND: 'NOT_FOUND',
+  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  SELF_DELETE: 'SELF_DELETE',
+} as const;
+
+type AppRole = typeof VALID_ROLES[number];
+
 interface CreateUserRequest {
   action: 'create';
   email: string;
   password: string;
   displayName: string;
   position?: string;
-  role: 'admin' | 'dev' | 'qa' | 'product_manager';
+  role: AppRole;
 }
 
 interface DeleteUserRequest {
@@ -27,6 +48,72 @@ interface UpdateUserRequest {
 }
 
 type RequestBody = CreateUserRequest | DeleteUserRequest | UpdateUserRequest;
+
+/**
+ * Validates that a string is a valid UUID format
+ */
+function isValidUUID(id: unknown): id is string {
+  if (typeof id !== 'string') return false;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(id);
+}
+
+/**
+ * Validates email format with comprehensive regex
+ */
+function isValidEmail(email: unknown): email is string {
+  if (typeof email !== 'string') return false;
+  if (email.length > MAX_EMAIL_LENGTH) return false;
+  // RFC 5322 compliant email regex (simplified but effective)
+  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+  return emailRegex.test(email);
+}
+
+/**
+ * Validates password meets requirements
+ */
+function isValidPassword(password: unknown): password is string {
+  if (typeof password !== 'string') return false;
+  return password.length >= MIN_PASSWORD_LENGTH && password.length <= MAX_PASSWORD_LENGTH;
+}
+
+/**
+ * Validates a role is in the allowed list
+ */
+function isValidRole(role: unknown): role is AppRole {
+  return typeof role === 'string' && VALID_ROLES.includes(role as AppRole);
+}
+
+/**
+ * Validates and sanitizes a display name
+ */
+function validateDisplayName(name: unknown): string | null {
+  if (typeof name !== 'string') return null;
+  const trimmed = name.trim();
+  if (trimmed.length === 0 || trimmed.length > MAX_DISPLAY_NAME_LENGTH) return null;
+  return trimmed;
+}
+
+/**
+ * Validates and sanitizes a position string
+ */
+function validatePosition(position: unknown): string | null {
+  if (position === undefined || position === null || position === '') return '';
+  if (typeof position !== 'string') return null;
+  const trimmed = position.trim();
+  if (trimmed.length > MAX_POSITION_LENGTH) return null;
+  return trimmed;
+}
+
+/**
+ * Returns a standardized error response with generic messages
+ */
+function errorResponse(code: keyof typeof ERROR_CODES, status: number): Response {
+  return new Response(
+    JSON.stringify({ error: ERROR_CODES[code] }),
+    { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
@@ -48,11 +135,9 @@ Deno.serve(async (req) => {
 
     // Get the authorization header to verify the requesting user
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'No authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (!authHeader?.startsWith('Bearer ')) {
+      console.error('Missing or invalid authorization header');
+      return errorResponse('UNAUTHORIZED', 401);
     }
 
     // Verify the requesting user is an admin
@@ -60,97 +145,104 @@ Deno.serve(async (req) => {
     const { data: { user: requestingUser }, error: authError } = await supabaseAdmin.auth.getUser(token);
     
     if (authError || !requestingUser) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid token' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.error('Token verification failed:', authError?.message);
+      return errorResponse('UNAUTHORIZED', 401);
     }
 
     // Check if requesting user is admin
-    const { data: roles } = await supabaseAdmin
+    const { data: roles, error: rolesError } = await supabaseAdmin
       .from('user_roles')
       .select('role')
       .eq('user_id', requestingUser.id)
       .eq('role', 'admin');
 
-    if (!roles || roles.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'Admin access required' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (rolesError || !roles || roles.length === 0) {
+      console.error('Admin access denied for user:', requestingUser.id);
+      return errorResponse('FORBIDDEN', 403);
     }
 
-    const body: RequestBody = await req.json();
+    // Parse and validate request body
+    let body: RequestBody;
+    try {
+      body = await req.json();
+    } catch {
+      console.error('Invalid JSON body');
+      return errorResponse('INVALID_REQUEST', 400);
+    }
 
     // Validate action
     if (!body.action || !['create', 'delete', 'update'].includes(body.action)) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid action' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.error('Invalid action:', body.action);
+      return errorResponse('INVALID_REQUEST', 400);
     }
 
     // Handle CREATE user
     if (body.action === 'create') {
       const { email, password, displayName, position, role } = body as CreateUserRequest;
 
-      // Validate inputs
-      if (!email || !password || !displayName || !role) {
-        return new Response(
-          JSON.stringify({ error: 'Email, password, display name, and role are required' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      // Validate email
+      if (!isValidEmail(email)) {
+        console.error('Invalid email format or length');
+        return errorResponse('INVALID_REQUEST', 400);
       }
 
-      // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        return new Response(
-          JSON.stringify({ error: 'Invalid email format' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      // Validate password
+      if (!isValidPassword(password)) {
+        console.error('Invalid password length');
+        return errorResponse('INVALID_REQUEST', 400);
       }
 
-      // Validate password length
-      if (password.length < 6) {
-        return new Response(
-          JSON.stringify({ error: 'Password must be at least 6 characters' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      // Validate display name
+      const validatedDisplayName = validateDisplayName(displayName);
+      if (validatedDisplayName === null) {
+        console.error('Invalid display name');
+        return errorResponse('INVALID_REQUEST', 400);
+      }
+
+      // Validate position (optional)
+      const validatedPosition = validatePosition(position);
+      if (validatedPosition === null) {
+        console.error('Invalid position length');
+        return errorResponse('INVALID_REQUEST', 400);
       }
 
       // Validate role
-      if (!['admin', 'dev', 'qa', 'product_manager'].includes(role)) {
-        return new Response(
-          JSON.stringify({ error: 'Invalid role' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      if (!isValidRole(role)) {
+        console.error('Invalid role:', role);
+        return errorResponse('INVALID_REQUEST', 400);
       }
 
       // Create user with admin API
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email,
         password,
-        email_confirm: true, // Auto-confirm email
+        email_confirm: true,
         user_metadata: {
-          display_name: displayName,
+          display_name: validatedDisplayName,
         },
       });
 
       if (createError) {
-        console.error('Error creating user:', createError);
-        return new Response(
-          JSON.stringify({ error: createError.message }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        console.error('User creation failed:', createError.message);
+        // Check for duplicate email without exposing details
+        if (createError.message?.toLowerCase().includes('already') || 
+            createError.message?.toLowerCase().includes('exists') ||
+            createError.message?.toLowerCase().includes('duplicate')) {
+          return errorResponse('USER_EXISTS', 409);
+        }
+        return errorResponse('INTERNAL_ERROR', 500);
       }
 
       // Update profile with position
-      if (position) {
-        await supabaseAdmin
+      if (validatedPosition) {
+        const { error: profileError } = await supabaseAdmin
           .from('profiles')
-          .update({ position, display_name: displayName })
+          .update({ position: validatedPosition, display_name: validatedDisplayName })
           .eq('id', newUser.user.id);
+        
+        if (profileError) {
+          console.error('Profile update failed:', profileError.message);
+        }
       }
 
       // Assign role
@@ -159,9 +251,11 @@ Deno.serve(async (req) => {
         .insert({ user_id: newUser.user.id, role });
 
       if (roleError) {
-        console.error('Error assigning role:', roleError);
-        // User was created, but role assignment failed - try to clean up
+        console.error('Role assignment failed:', roleError.message);
+        // User was created but role assignment failed - log but don't fail request
       }
+
+      console.log(`User created successfully: ${newUser.user.id}`);
 
       return new Response(
         JSON.stringify({ 
@@ -169,8 +263,8 @@ Deno.serve(async (req) => {
           user: { 
             id: newUser.user.id, 
             email: newUser.user.email,
-            displayName,
-            position,
+            displayName: validatedDisplayName,
+            position: validatedPosition,
             role,
           } 
         }),
@@ -182,31 +276,30 @@ Deno.serve(async (req) => {
     if (body.action === 'delete') {
       const { userId } = body as DeleteUserRequest;
 
-      if (!userId) {
-        return new Response(
-          JSON.stringify({ error: 'User ID is required' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      // Validate userId format
+      if (!isValidUUID(userId)) {
+        console.error('Invalid userId format');
+        return errorResponse('INVALID_REQUEST', 400);
       }
 
       // Prevent self-deletion
       if (userId === requestingUser.id) {
-        return new Response(
-          JSON.stringify({ error: 'Cannot delete your own account' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        console.error('Attempted self-deletion by user:', requestingUser.id);
+        return errorResponse('SELF_DELETE', 400);
       }
 
-      // Delete user (this will cascade delete profile and roles)
+      // Delete user
       const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
 
       if (deleteError) {
-        console.error('Error deleting user:', deleteError);
-        return new Response(
-          JSON.stringify({ error: deleteError.message }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        console.error('User deletion failed:', deleteError.message);
+        if (deleteError.message?.toLowerCase().includes('not found')) {
+          return errorResponse('NOT_FOUND', 404);
+        }
+        return errorResponse('INTERNAL_ERROR', 500);
       }
+
+      console.log(`User deleted successfully: ${userId}`);
 
       return new Response(
         JSON.stringify({ success: true }),
@@ -218,16 +311,33 @@ Deno.serve(async (req) => {
     if (body.action === 'update') {
       const { userId, displayName, position } = body as UpdateUserRequest;
 
-      if (!userId) {
-        return new Response(
-          JSON.stringify({ error: 'User ID is required' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      // Validate userId format
+      if (!isValidUUID(userId)) {
+        console.error('Invalid userId format');
+        return errorResponse('INVALID_REQUEST', 400);
       }
 
       const updates: Record<string, string> = {};
-      if (displayName) updates.display_name = displayName;
-      if (position !== undefined) updates.position = position;
+      
+      // Validate and add displayName if provided
+      if (displayName !== undefined) {
+        const validatedDisplayName = validateDisplayName(displayName);
+        if (validatedDisplayName === null) {
+          console.error('Invalid display name');
+          return errorResponse('INVALID_REQUEST', 400);
+        }
+        updates.display_name = validatedDisplayName;
+      }
+      
+      // Validate and add position if provided
+      if (position !== undefined) {
+        const validatedPosition = validatePosition(position);
+        if (validatedPosition === null) {
+          console.error('Invalid position');
+          return errorResponse('INVALID_REQUEST', 400);
+        }
+        updates.position = validatedPosition;
+      }
 
       if (Object.keys(updates).length > 0) {
         const { error: updateError } = await supabaseAdmin
@@ -236,13 +346,12 @@ Deno.serve(async (req) => {
           .eq('id', userId);
 
         if (updateError) {
-          console.error('Error updating user:', updateError);
-          return new Response(
-            JSON.stringify({ error: updateError.message }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+          console.error('Profile update failed:', updateError.message);
+          return errorResponse('INTERNAL_ERROR', 500);
         }
       }
+
+      console.log(`User updated successfully: ${userId}`);
 
       return new Response(
         JSON.stringify({ success: true }),
@@ -250,16 +359,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    return new Response(
-      JSON.stringify({ error: 'Unknown action' }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return errorResponse('INVALID_REQUEST', 400);
 
   } catch (error) {
-    console.error('Error in admin-users function:', error);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error('Unexpected error:', error instanceof Error ? error.message : 'Unknown error');
+    return errorResponse('INTERNAL_ERROR', 500);
   }
 });
