@@ -42,6 +42,13 @@ import { format, formatDistanceToNow, isPast, differenceInDays } from 'date-fns'
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const Dashboard = () => {
   const { user, loading: authLoading, isAdmin } = useAuth();
@@ -58,6 +65,11 @@ const Dashboard = () => {
   // Archive view
   const [showArchive, setShowArchive] = useState(false);
   const [expandedCompletedSection, setExpandedCompletedSection] = useState(true);
+  
+  // Completed releases dialog
+  const [showCompleted, setShowCompleted] = useState(false);
+  const [completedAppFilter, setCompletedAppFilter] = useState<string>('all');
+  const [completedPlatformFilter, setCompletedPlatformFilter] = useState<string>('all');
 
   // Helper to compare version strings (simple semver comparison)
   const compareVersions = (a: string, b: string): number => {
@@ -73,7 +85,7 @@ const Dashboard = () => {
   };
 
   // Group releases by track (app_id + platform) and separate by status
-  const { currentActiveReleases, recentlyCompletedReleases, archivedReleases, stats } = useMemo(() => {
+  const { currentActiveReleases, recentlyCompletedReleases, allCompletedReleases, archivedReleases, stats } = useMemo(() => {
     // Group by track
     const trackMap = new Map<string, ReleaseWithDetails[]>();
     releases.forEach(r => {
@@ -86,6 +98,7 @@ const Dashboard = () => {
 
     const currentActive: ReleaseWithDetails[] = [];
     const recentlyCompleted: ReleaseWithDetails[] = [];
+    const allCompleted: ReleaseWithDetails[] = [];
     const archived: ReleaseWithDetails[] = [];
 
     trackMap.forEach((trackReleases) => {
@@ -101,18 +114,19 @@ const Dashboard = () => {
           if (release.id === latestActive?.id) {
             currentActive.push(release);
           } else {
-            // Other active releases are archived
+            // Other active releases are archived (past versions not completed)
             archived.push(release);
           }
         } else {
-          // Completed releases: most recent completed goes to "recently completed", rest to archive
+          // All completed releases go to allCompleted for the completed dialog
+          allCompleted.push(release);
+          
+          // Most recent completed goes to "recently completed" section on dashboard
           const completedInTrack = sorted.filter(r => r.is_complete);
           const isLatestCompleted = completedInTrack.length > 0 && completedInTrack[0].id === release.id;
           
           if (isLatestCompleted) {
             recentlyCompleted.push(release);
-          } else {
-            archived.push(release);
           }
         }
       });
@@ -121,16 +135,18 @@ const Dashboard = () => {
     // Sort current active by updated_at descending
     currentActive.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
     recentlyCompleted.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+    allCompleted.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
     archived.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
 
     return {
       currentActiveReleases: currentActive,
       recentlyCompletedReleases: recentlyCompleted,
+      allCompletedReleases: allCompleted,
       archivedReleases: archived,
       stats: {
         totalActive: currentActive.length,
         totalBlocked: currentActive.filter(r => r.blocked_stops > 0).length,
-        totalCompleted: recentlyCompleted.length,
+        totalCompleted: allCompleted.length,
         totalArchived: archived.length,
       }
     };
@@ -301,7 +317,10 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card 
+            className="cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => setShowCompleted(true)}
+          >
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -315,7 +334,10 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card 
+            className="cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => setShowArchive(true)}
+          >
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -519,25 +541,60 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Archived Releases Dialog */}
-        <Dialog open={showArchive} onOpenChange={setShowArchive}>
+        {/* Completed Releases Dialog with Filtering */}
+        <Dialog open={showCompleted} onOpenChange={setShowCompleted}>
           <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Archive className="w-5 h-5" />
-                Past Releases
+                <CheckCircle2 className="w-5 h-5 text-status-done" />
+                Completed Releases
               </DialogTitle>
               <DialogDescription>
-                Older versions and completed releases from all tracks
+                All completed releases across apps and platforms
               </DialogDescription>
             </DialogHeader>
+            
+            {/* Filters */}
+            <div className="flex gap-4 mt-4">
+              <div className="flex-1">
+                <label className="text-sm font-medium mb-1 block">App</label>
+                <Select value={completedAppFilter} onValueChange={setCompletedAppFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All apps" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All apps</SelectItem>
+                    {apps.map(app => (
+                      <SelectItem key={app.id} value={app.id}>{app.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex-1">
+                <label className="text-sm font-medium mb-1 block">Platform</label>
+                <Select value={completedPlatformFilter} onValueChange={setCompletedPlatformFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All platforms" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All platforms</SelectItem>
+                    <SelectItem value="ios">iOS</SelectItem>
+                    <SelectItem value="android">Android</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              {archivedReleases.map((release) => (
+              {allCompletedReleases
+                .filter(r => completedAppFilter === 'all' || r.app_id === completedAppFilter)
+                .filter(r => completedPlatformFilter === 'all' || r.platform === completedPlatformFilter)
+                .map((release) => (
                 <Card 
                   key={release.id}
                   className="cursor-pointer hover:shadow-md transition-shadow group"
                   onClick={() => {
-                    setShowArchive(false);
+                    setShowCompleted(false);
                     handleReleaseClick(release);
                   }}
                 >
@@ -554,29 +611,98 @@ const Dashboard = () => {
                           <CardDescription>{release.version}</CardDescription>
                         </div>
                       </div>
-                      {getStatusBadge(release)}
+                      <Badge className="gap-1 bg-status-done/80 text-white">
+                        <CheckCircle2 className="w-3 h-3" /> Complete
+                      </Badge>
                     </div>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="text-muted-foreground">Progress</span>
-                          <span className="font-medium">
-                            {release.completed_stops}/{release.total_stops} stops
-                          </span>
-                        </div>
-                        <Progress value={getProgress(release)} className="h-2" />
-                      </div>
+                      <Progress value={100} className="h-2" />
                       <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
-                        <span>Updated {format(new Date(release.updated_at), 'MMM d, yyyy')}</span>
+                        <span>Completed {format(new Date(release.updated_at), 'MMM d, yyyy')}</span>
                         <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               ))}
+              {allCompletedReleases
+                .filter(r => completedAppFilter === 'all' || r.app_id === completedAppFilter)
+                .filter(r => completedPlatformFilter === 'all' || r.platform === completedPlatformFilter)
+                .length === 0 && (
+                <div className="col-span-2 text-center py-8 text-muted-foreground">
+                  No completed releases match the selected filters
+                </div>
+              )}
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Archived/Past Releases Dialog */}
+        <Dialog open={showArchive} onOpenChange={setShowArchive}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Archive className="w-5 h-5" />
+                Past Releases
+              </DialogTitle>
+              <DialogDescription>
+                Older active versions that are not the latest for their track
+              </DialogDescription>
+            </DialogHeader>
+            {archivedReleases.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No archived releases
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                {archivedReleases.map((release) => (
+                  <Card 
+                    key={release.id}
+                    className="cursor-pointer hover:shadow-md transition-shadow group"
+                    onClick={() => {
+                      setShowArchive(false);
+                      handleReleaseClick(release);
+                    }}
+                  >
+                    <CardHeader className="pb-2">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2">
+                          {release.platform === 'ios' ? (
+                            <Apple className="w-5 h-5 text-muted-foreground" />
+                          ) : (
+                            <Smartphone className="w-5 h-5 text-muted-foreground" />
+                          )}
+                          <div>
+                            <CardTitle className="text-base">{release.app_name}</CardTitle>
+                            <CardDescription>{release.version}</CardDescription>
+                          </div>
+                        </div>
+                        {getStatusBadge(release)}
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <div>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className="text-muted-foreground">Progress</span>
+                            <span className="font-medium">
+                              {release.completed_stops}/{release.total_stops} stops
+                            </span>
+                          </div>
+                          <Progress value={getProgress(release)} className="h-2" />
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
+                          <span>Updated {format(new Date(release.updated_at), 'MMM d, yyyy')}</span>
+                          <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       </div>
