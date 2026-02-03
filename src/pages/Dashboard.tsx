@@ -19,6 +19,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { 
   Train, 
   Loader2, 
@@ -36,7 +46,8 @@ import {
   X,
   Archive,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Trash2
 } from 'lucide-react';
 import { format, formatDistanceToNow, isPast, differenceInDays } from 'date-fns';
 import { motion } from 'framer-motion';
@@ -53,7 +64,7 @@ import {
 const Dashboard = () => {
   const { user, loading: authLoading, isAdmin } = useAuth();
   const navigate = useNavigate();
-  const { releases, loading: releasesLoading, updateVersion, updateDeadline, refetch } = useAllReleases();
+  const { releases, loading: releasesLoading, updateVersion, updateDeadline, deleteRelease, refetch } = useAllReleases();
   const { apps } = useApps();
 
   // Edit version dialog
@@ -61,6 +72,10 @@ const Dashboard = () => {
   const [newVersion, setNewVersion] = useState('');
   const [newDeadline, setNewDeadline] = useState<Date | undefined>();
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Delete confirmation
+  const [releaseToDelete, setReleaseToDelete] = useState<ReleaseWithDetails | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Archive view
   const [showArchive, setShowArchive] = useState(false);
@@ -199,6 +214,28 @@ const Dashboard = () => {
       setIsSaving(false);
     }
   };
+
+  const handleDeleteClick = (e: React.MouseEvent, release: ReleaseWithDetails) => {
+    e.stopPropagation();
+    setReleaseToDelete(release);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!releaseToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      await deleteRelease(releaseToDelete.id);
+      toast.success(`Release ${releaseToDelete.version} deleted`);
+      setReleaseToDelete(null);
+      setEditingRelease(null);
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
 
   const getStatusBadge = (release: ReleaseWithDetails) => {
     if (release.blocked_stops > 0) {
@@ -761,7 +798,15 @@ const Dashboard = () => {
               </Popover>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button 
+              variant="destructive" 
+              onClick={(e) => editingRelease && handleDeleteClick(e, editingRelease)}
+              className="sm:mr-auto"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete Release
+            </Button>
             <Button variant="outline" onClick={() => setEditingRelease(null)}>
               Cancel
             </Button>
@@ -772,6 +817,30 @@ const Dashboard = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!releaseToDelete} onOpenChange={(open) => !open && setReleaseToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Release</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{releaseToDelete?.app_name} {releaseToDelete?.version}</strong>? 
+              This will permanently remove the release and all its stops. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

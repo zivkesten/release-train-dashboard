@@ -131,6 +131,27 @@ export function useAllReleases() {
     await fetchAllReleases();
   };
 
+  const deleteRelease = async (releaseId: string) => {
+    if (!isAdmin) throw new Error('Only admins can delete releases');
+
+    // Delete stops first (cascade should handle this, but being explicit)
+    const { error: stopsError } = await supabase
+      .from('stops')
+      .delete()
+      .eq('release_train_id', releaseId);
+
+    if (stopsError) throw stopsError;
+
+    // Delete the release train
+    const { error } = await supabase
+      .from('release_trains')
+      .delete()
+      .eq('id', releaseId);
+
+    if (error) throw error;
+    await fetchAllReleases();
+  };
+
   useEffect(() => {
     fetchAllReleases();
   }, [fetchAllReleases]);
@@ -142,5 +163,6 @@ export function useAllReleases() {
     refetch: fetchAllReleases,
     updateVersion,
     updateDeadline,
+    deleteRelease,
   };
 }
