@@ -20,6 +20,16 @@ export interface ReleaseWithDetails {
   is_complete: boolean;
 }
 
+export interface StopDetails {
+  id: string;
+  number: number;
+  title: string;
+  description: string | null;
+  owner_type: string;
+  owner_name: string;
+  status: string;
+}
+
 export function useAllReleases() {
   const { user, isAdmin } = useAuth();
   const [releases, setReleases] = useState<ReleaseWithDetails[]>([]);
@@ -152,6 +162,107 @@ export function useAllReleases() {
     await fetchAllReleases();
   };
 
+  const fetchReleaseStops = async (releaseId: string): Promise<StopDetails[]> => {
+    const { data, error } = await supabase
+      .from('stops')
+      .select('id, number, title, description, owner_type, owner_name, status')
+      .eq('release_train_id', releaseId)
+      .order('number');
+
+    if (error) throw error;
+    return data || [];
+  };
+
+  const addStops = async (
+    releaseId: string,
+    stopsToAdd: Array<{
+      number: number;
+      title: string;
+      description: string;
+      ownerType: 'person' | 'automation';
+      ownerName: string;
+    }>
+  ) => {
+    if (!isAdmin) throw new Error('Only admins can add stops');
+
+    if (stopsToAdd.length === 0) return;
+
+    const stopsData = stopsToAdd.map((stop) => ({
+      release_train_id: releaseId,
+      number: stop.number,
+      title: stop.title,
+      description: stop.description || null,
+      owner_type: stop.ownerType,
+      owner_name: stop.ownerName,
+      status: 'not_started' as const,
+    }));
+
+    const { error } = await supabase.from('stops').insert(stopsData);
+
+    if (error) throw error;
+    await fetchAllReleases();
+  };
+
+  const deleteStops = async (stopIds: string[]) => {
+    if (!isAdmin) throw new Error('Only admins can delete stops');
+
+    if (stopIds.length === 0) return;
+
+    // First delete any notes associated with these stops
+    const { error: notesError } = await supabase
+      .from('notes')
+      .delete()
+      .in('stop_id', stopIds);
+
+    if (notesError) throw notesError;
+
+    // Then delete the stops
+    const { error } = await supabase.from('stops').delete().in('id', stopIds);
+
+    if (error) throw error;
+    await fetchAllReleases();
+  };
+
+  const updateReleaseStops = async (
+    releaseId: string,
+    stopsToAdd: Array<{
+      number: number;
+      title: string;
+      description: string;
+      ownerType: 'person' | 'automation';
+      ownerName: string;
+    }>,
+    stopIdsToDelete: string[]
+  ) => {
+    if (!isAdmin) throw new Error('Only admins can modify stops');
+
+    // Delete stops first
+    if (stopIdsToDelete.length > 0) {
+      await deleteStops(stopIdsToDelete);
+    }
+
+    // Add new stops
+    if (stopsToAdd.length > 0) {
+      await addStops(releaseId, stopsToAdd);
+    }
+
+    // Re-number stops to ensure sequential ordering
+    const remainingStops = await fetchReleaseStops(releaseId);
+    const sortedStops = remainingStops.sort((a, b) => a.number - b.number);
+    
+    for (let i = 0; i < sortedStops.length; i++) {
+      const expectedNumber = i + 1;
+      if (sortedStops[i].number !== expectedNumber) {
+        await supabase
+          .from('stops')
+          .update({ number: expectedNumber })
+          .eq('id', sortedStops[i].id);
+      }
+    }
+
+    await fetchAllReleases();
+  };
+
   useEffect(() => {
     fetchAllReleases();
   }, [fetchAllReleases]);
@@ -164,5 +275,9 @@ export function useAllReleases() {
     updateVersion,
     updateDeadline,
     deleteRelease,
+    fetchReleaseStops,
+    addStops,
+    deleteStops,
+    updateReleaseStops,
   };
 }
