@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAllReleases, ReleaseWithDetails } from '@/hooks/useAllReleases';
@@ -33,7 +33,10 @@ import {
   Settings,
   Pencil,
   CalendarIcon,
-  X
+  X,
+  Archive,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { format, formatDistanceToNow, isPast, differenceInDays } from 'date-fns';
 import { motion } from 'framer-motion';
@@ -51,6 +54,10 @@ const Dashboard = () => {
   const [newVersion, setNewVersion] = useState('');
   const [newDeadline, setNewDeadline] = useState<Date | undefined>();
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Archive view
+  const [showArchive, setShowArchive] = useState(false);
+  const [expandedCompletedSection, setExpandedCompletedSection] = useState(true);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -68,14 +75,82 @@ const Dashboard = () => {
 
   if (!user) return null;
 
-  // Separate by completion status based on stops, not is_active flag
-  const activeReleases = releases.filter(r => !r.is_complete);
-  const completedReleases = releases.filter(r => r.is_complete);
-  
-  // Stats
-  const totalActive = activeReleases.length;
-  const totalBlocked = activeReleases.filter(r => r.blocked_stops > 0).length;
-  const totalCompleted = completedReleases.length;
+  // Helper to compare version strings (simple semver comparison)
+  const compareVersions = (a: string, b: string): number => {
+    const partsA = a.replace(/[^0-9.]/g, '').split('.').map(Number);
+    const partsB = b.replace(/[^0-9.]/g, '').split('.').map(Number);
+    for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
+      const numA = partsA[i] || 0;
+      const numB = partsB[i] || 0;
+      if (numA > numB) return 1;
+      if (numA < numB) return -1;
+    }
+    return 0;
+  };
+
+  // Group releases by track (app_id + platform) and separate by status
+  const { currentActiveReleases, recentlyCompletedReleases, archivedReleases, stats } = useMemo(() => {
+    // Group by track
+    const trackMap = new Map<string, ReleaseWithDetails[]>();
+    releases.forEach(r => {
+      const trackKey = `${r.app_id}-${r.platform}`;
+      if (!trackMap.has(trackKey)) {
+        trackMap.set(trackKey, []);
+      }
+      trackMap.get(trackKey)!.push(r);
+    });
+
+    const currentActive: ReleaseWithDetails[] = [];
+    const recentlyCompleted: ReleaseWithDetails[] = [];
+    const archived: ReleaseWithDetails[] = [];
+
+    trackMap.forEach((trackReleases) => {
+      // Sort by version descending (highest first)
+      const sorted = [...trackReleases].sort((a, b) => compareVersions(b.version, a.version));
+      
+      // Find the latest active (non-complete) release for this track
+      const latestActive = sorted.find(r => !r.is_complete);
+      
+      sorted.forEach(release => {
+        if (!release.is_complete) {
+          // Only show the latest active release per track
+          if (release.id === latestActive?.id) {
+            currentActive.push(release);
+          } else {
+            // Other active releases are archived
+            archived.push(release);
+          }
+        } else {
+          // Completed releases: most recent completed goes to "recently completed", rest to archive
+          const completedInTrack = sorted.filter(r => r.is_complete);
+          const isLatestCompleted = completedInTrack.length > 0 && completedInTrack[0].id === release.id;
+          
+          if (isLatestCompleted) {
+            recentlyCompleted.push(release);
+          } else {
+            archived.push(release);
+          }
+        }
+      });
+    });
+
+    // Sort current active by updated_at descending
+    currentActive.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+    recentlyCompleted.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+    archived.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+
+    return {
+      currentActiveReleases: currentActive,
+      recentlyCompletedReleases: recentlyCompleted,
+      archivedReleases: archived,
+      stats: {
+        totalActive: currentActive.length,
+        totalBlocked: currentActive.filter(r => r.blocked_stops > 0).length,
+        totalCompleted: recentlyCompleted.length,
+        totalArchived: archived.length,
+      }
+    };
+  }, [releases]);
 
   const handleReleaseClick = (release: ReleaseWithDetails) => {
     navigate(`/release/${release.app_id}/${release.platform}/${release.id}`);
@@ -197,13 +272,13 @@ const Dashboard = () => {
 
       <div className="container mx-auto px-4 py-6">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-8">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Active Releases</p>
-                  <p className="text-3xl font-bold">{totalActive}</p>
+                  <p className="text-3xl font-bold">{stats.totalActive}</p>
                 </div>
                 <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                   <Train className="w-6 h-6 text-primary" />
@@ -217,7 +292,7 @@ const Dashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Blocked</p>
-                  <p className="text-3xl font-bold">{totalBlocked}</p>
+                  <p className="text-3xl font-bold">{stats.totalBlocked}</p>
                 </div>
                 <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
                   <AlertCircle className="w-6 h-6 text-destructive" />
@@ -231,10 +306,24 @@ const Dashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Completed</p>
-                  <p className="text-3xl font-bold">{totalCompleted}</p>
+                  <p className="text-3xl font-bold">{stats.totalCompleted}</p>
                 </div>
                 <div className="w-12 h-12 rounded-full bg-status-done/10 flex items-center justify-center">
                   <CheckCircle2 className="w-6 h-6 text-status-done" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Archived</p>
+                  <p className="text-3xl font-bold">{stats.totalArchived}</p>
+                </div>
+                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                  <Archive className="w-6 h-6 text-muted-foreground" />
                 </div>
               </div>
             </CardContent>
@@ -263,12 +352,12 @@ const Dashboard = () => {
           </Card>
         ) : (
           <div className="space-y-6">
-            {/* Active Releases */}
-            {activeReleases.length > 0 && (
+            {/* Active Releases - One per track */}
+            {currentActiveReleases.length > 0 && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">Active Releases</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {activeReleases.map((release, index) => (
+                  {currentActiveReleases.map((release, index) => (
                     <motion.div
                       key={release.id}
                       initial={{ opacity: 0, y: 20 }}
@@ -342,69 +431,154 @@ const Dashboard = () => {
               </div>
             )}
 
-            {/* Completed Releases */}
-            {completedReleases.length > 0 && (
+            {/* Recently Completed Releases */}
+            {recentlyCompletedReleases.length > 0 && (
               <div>
-                <h2 className="text-lg font-semibold mb-4">Completed Releases</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {completedReleases.map((release, index) => (
-                    <motion.div
-                      key={release.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                    >
-                      <Card 
-                        className="cursor-pointer hover:shadow-md transition-shadow opacity-75 hover:opacity-100 group"
-                        onClick={() => handleReleaseClick(release)}
+                <button 
+                  className="flex items-center gap-2 text-lg font-semibold mb-4 hover:text-primary transition-colors"
+                  onClick={() => setExpandedCompletedSection(!expandedCompletedSection)}
+                >
+                  {expandedCompletedSection ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                  Recently Completed
+                  <Badge variant="secondary" className="ml-2">{recentlyCompletedReleases.length}</Badge>
+                </button>
+                
+                {expandedCompletedSection && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {recentlyCompletedReleases.map((release, index) => (
+                      <motion.div
+                        key={release.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
                       >
-                        <CardHeader className="pb-2">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-2">
-                              {release.platform === 'ios' ? (
-                                <Apple className="w-5 h-5 text-muted-foreground" />
-                              ) : (
-                                <Smartphone className="w-5 h-5 text-muted-foreground" />
-                              )}
-                              <div>
-                                <CardTitle className="text-base">{release.app_name}</CardTitle>
-                                <CardDescription className="flex items-center gap-1">
-                                  {release.version}
-                                  {isAdmin && (
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-5 w-5 opacity-0 group-hover:opacity-100"
-                                      onClick={(e) => handleEditClick(e, release)}
-                                    >
-                                      <Pencil className="w-3 h-3" />
-                                    </Button>
-                                  )}
-                                </CardDescription>
+                        <Card 
+                          className="cursor-pointer hover:shadow-md transition-shadow opacity-75 hover:opacity-100 group"
+                          onClick={() => handleReleaseClick(release)}
+                        >
+                          <CardHeader className="pb-2">
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-center gap-2">
+                                {release.platform === 'ios' ? (
+                                  <Apple className="w-5 h-5 text-muted-foreground" />
+                                ) : (
+                                  <Smartphone className="w-5 h-5 text-muted-foreground" />
+                                )}
+                                <div>
+                                  <CardTitle className="text-base">{release.app_name}</CardTitle>
+                                  <CardDescription className="flex items-center gap-1">
+                                    {release.version}
+                                    {isAdmin && (
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-5 w-5 opacity-0 group-hover:opacity-100"
+                                        onClick={(e) => handleEditClick(e, release)}
+                                      >
+                                        <Pencil className="w-3 h-3" />
+                                      </Button>
+                                    )}
+                                  </CardDescription>
+                                </div>
+                              </div>
+                              <Badge className="gap-1 bg-status-done/80 text-white">
+                                <CheckCircle2 className="w-3 h-3" /> Complete
+                              </Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-2">
+                              <Progress value={100} className="h-2" />
+                              <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
+                                <span>Completed {format(new Date(release.updated_at), 'MMM d, yyyy')}</span>
+                                <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
                               </div>
                             </div>
-                            <Badge className="gap-1 bg-status-done/80 text-white">
-                              <CheckCircle2 className="w-3 h-3" /> Complete
-                            </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2">
-                            <Progress value={100} className="h-2" />
-                            <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
-                              <span>Completed {format(new Date(release.updated_at), 'MMM d, yyyy')}</span>
-                              <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  ))}
-                </div>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* View Past Releases Button */}
+            {archivedReleases.length > 0 && (
+              <div className="flex justify-center pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowArchive(true)}
+                  className="gap-2"
+                >
+                  <Archive className="w-4 h-4" />
+                  View Past Releases ({archivedReleases.length})
+                </Button>
               </div>
             )}
           </div>
         )}
+
+        {/* Archived Releases Dialog */}
+        <Dialog open={showArchive} onOpenChange={setShowArchive}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Archive className="w-5 h-5" />
+                Past Releases
+              </DialogTitle>
+              <DialogDescription>
+                Older versions and completed releases from all tracks
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              {archivedReleases.map((release) => (
+                <Card 
+                  key={release.id}
+                  className="cursor-pointer hover:shadow-md transition-shadow group"
+                  onClick={() => {
+                    setShowArchive(false);
+                    handleReleaseClick(release);
+                  }}
+                >
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        {release.platform === 'ios' ? (
+                          <Apple className="w-5 h-5 text-muted-foreground" />
+                        ) : (
+                          <Smartphone className="w-5 h-5 text-muted-foreground" />
+                        )}
+                        <div>
+                          <CardTitle className="text-base">{release.app_name}</CardTitle>
+                          <CardDescription>{release.version}</CardDescription>
+                        </div>
+                      </div>
+                      {getStatusBadge(release)}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="text-muted-foreground">Progress</span>
+                          <span className="font-medium">
+                            {release.completed_stops}/{release.total_stops} stops
+                          </span>
+                        </div>
+                        <Progress value={getProgress(release)} className="h-2" />
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
+                        <span>Updated {format(new Date(release.updated_at), 'MMM d, yyyy')}</span>
+                        <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Edit Release Dialog */}
